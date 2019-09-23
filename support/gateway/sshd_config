@@ -1,0 +1,12 @@
+Port 2222
+ListenAddress 0.0.0.0
+
+AuthorizedKeysFile	.ssh/authorized_keys /etc/authorized_keys/%u
+
+# allow binding tunnels on 0.0.0.0
+GatewayPorts yes
+
+HostKey /etc/ssh/keys/ssh_host_rsa_key
+HostKey /etc/ssh/keys/ssh_host_dsa_key
+HostKey /etc/ssh/keys/ssh_host_ecdsa_key
+HostKey /etc/ssh/keys/ssh_host_ed25519_key
