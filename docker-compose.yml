@@ -9,14 +9,9 @@ services:
       - ./support/proxy/nginx.conf:/etc/nginx/nginx.conf:ro
 
   gateway:
-    image: docker.io/panubo/sshd:1.0.3
+    build: ./support/gateway
     ports:
       - "2222"
-    environment:
-      - SSH_ENABLE_ROOT=true
-    volumes:
-      - ./support/gateway/sshd_config:/etc/ssh/sshd_config
-      - ./support/secrets/id_rsa.pub:/root/.ssh/authorized_keys
 
   loophole:
     image: kroniak/ssh-client
