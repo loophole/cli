@@ -1,6 +1,13 @@
 version: "3.6"
 
 services:
+  proxy:
+    image: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./support/proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+
   gateway:
     image: docker.io/panubo/sshd:1.0.3
     ports:
@@ -10,13 +17,6 @@ services:
     volumes:
       - ./support/gateway/sshd_config:/etc/ssh/sshd_config
       - ./support/secrets/id_rsa.pub:/root/.ssh/authorized_keys
-
-  proxy:
-    image: nginx
-    ports:
-      - "80:80"
-    volumes:
-      - ./support/proxy/nginx.conf:/etc/nginx/nginx.conf:ro
 
   loophole:
     image: kroniak/ssh-client
