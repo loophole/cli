@@ -11,13 +11,10 @@ services:
   gateway:
     build: ./support/gateway
     ports:
-      - "2222"
+      - "2222:2222"
 
   # loophole:
-  #   image: kroniak/ssh-client
-  #   volumes:
-  #     - ./support/secrets/id_rsa:/root/.ssh/id_rsa:ro
-  #     - ./support/secrets/config:/root/.ssh/config:ro
+  #   build: ./support/client
   #   command: "sh -c \"sleep 5 && ssh -4 -N -R *:8080:myservice:80 gateway\""
 
   loophole:
