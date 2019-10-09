@@ -6,156 +6,126 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
-	"os"
-	"strconv"
-	"strings"
-	"time"
 
 	"golang.org/x/crypto/ssh"
 )
 
+func GetPublicKey(file string) (ssh.AuthMethod, error) {
+	key, err := ioutil.ReadFile(file)
+
+	if err != nil {
+		return nil, err
+	}
+
+	signer, err := ssh.ParsePrivateKey(key)
+
+	if err != nil {
+
+		return nil, err
+	}
+
+	return ssh.PublicKeys(signer), nil
+}
+
 type Endpoint struct {
 	Host string
 	Port int
-	User string
-}
-
-func NewEndpoint(s string) *Endpoint {
-	endpoint := &Endpoint{
-		Host: s,
-	}
-	if parts := strings.Split(endpoint.Host, "@"); len(parts) > 1 {
-		endpoint.User = parts[0]
-		endpoint.Host = parts[1]
-	}
-	if parts := strings.Split(endpoint.Host, ":"); len(parts) > 1 {
-		endpoint.Host = parts[0]
-		endpoint.Port, _ = strconv.Atoi(parts[1])
-	}
-	return endpoint
 }
 
 func (endpoint *Endpoint) String() string {
-	return fmt.Sprintf("%s:%d", endpoint.Host, endpoint.Port)
-}
-
-type SSHTunnel struct {
-	Local  *Endpoint
-	Server *Endpoint
-	Remote *Endpoint
-	Config *ssh.ClientConfig
-	Log    *log.Logger
-}
-
-func (tunnel *SSHTunnel) logf(fmt string, args ...interface{}) {
-	if tunnel.Log != nil {
-		tunnel.Log.Printf(fmt, args...)
+	if endpoint != nil {
+		return fmt.Sprintf("%s:%d", endpoint.Host, endpoint.Port)
 	}
+	return ""
 }
 
-func (tunnel *SSHTunnel) Start() error {
-	listener, err := net.Listen("tcp", tunnel.Local.String())
-	if err != nil {
-		return err
-	}
-	defer listener.Close()
+// From https://sosedoff.com/2015/05/25/ssh-port-forwarding-with-go.html
+// Handle local client connections and tunnel data to the remote server
+// Will use io.Copy - http://golang.org/pkg/io/#Copy
+func handleClient(client net.Conn, remote net.Conn) {
+	defer client.Close()
+	chDone := make(chan bool)
 
-	tunnel.Local.Port = listener.Addr().(*net.TCPAddr).Port
-	for {
-		conn, err := listener.Accept()
+	// Start remote -> local data transfer
+	go func() {
+		_, err := io.Copy(client, remote)
 		if err != nil {
-			return err
+			log.Println(fmt.Sprintf("error while copy remote->local: %s", err))
 		}
+		chDone <- true
+	}()
 
-		tunnel.logf("accepted connection")
-		go tunnel.forward(conn)
-	}
-}
-
-func (tunnel *SSHTunnel) forward(localConn net.Conn) {
-	serverConn, err := ssh.Dial("tcp", tunnel.Server.String(), tunnel.Config)
-	if err != nil {
-		tunnel.logf("server dial error: %s", err)
-		return
-	}
-
-	tunnel.logf("connected to %s (1 of 2)\n", tunnel.Server.String())
-
-	remoteConn, err := serverConn.Dial("tcp", tunnel.Remote.String())
-	if err != nil {
-		tunnel.logf("remote dial error: %s", err)
-		return
-	}
-
-	tunnel.logf("connected to %s (2 of 2)\n", tunnel.Remote.String())
-
-	copyConn := func(writer, reader net.Conn) {
-		_, err := io.Copy(writer, reader)
+	// Start local -> remote data transfer
+	go func() {
+		_, err := io.Copy(remote, client)
 		if err != nil {
-			tunnel.logf("io.Copy error: %s", err)
+			log.Println(fmt.Sprintf("error while copy local->remote: %s", err))
 		}
-	}
+		chDone <- true
+	}()
 
-	go copyConn(localConn, remoteConn)
-	go copyConn(remoteConn, localConn)
+	<-chDone
 }
 
-func PrivateKeyFile(file string) ssh.AuthMethod {
-	buffer, err := ioutil.ReadFile(file)
-	if err != nil {
-		return nil
-	}
-
-	key, err := ssh.ParsePrivateKey(buffer)
-	if err != nil {
-		return nil
-	}
-
-	return ssh.PublicKeys(key)
+// local service to be forwarded
+var localEndpoint = Endpoint{
+	Host: "myservice",
+	Port: 80,
 }
 
-func NewSSHTunnel(tunnel string, auth ssh.AuthMethod, destination string, local string) *SSHTunnel {
-	// A random port will be chosen for us.
-	localEndpoint := NewEndpoint(local)
+// remote SSH server
+var serverEndpoint = Endpoint{
+	Host: "gateway",
+	Port: 2222,
+}
 
-	server := NewEndpoint(tunnel)
-	if server.Port == 0 {
-		server.Port = 22
-	}
-
-	sshTunnel := &SSHTunnel{
-		Config: &ssh.ClientConfig{
-			User: server.User,
-			Auth: []ssh.AuthMethod{auth},
-			HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-				// Always accept key.
-				return nil
-			},
-		},
-		Local:  localEndpoint,
-		Server: server,
-		Remote: NewEndpoint(destination),
-	}
-
-	return sshTunnel
+// remote forwarding port (on remote SSH server network)
+var remoteEndpoint = Endpoint{
+	Host: "0.0.0.0",
+	Port: 8080,
 }
 
 func main() {
-	// Setup the tunnel, but do not yet start it yet.
-	tunnel := NewSSHTunnel(
-		// User and host of tunnel server, it will default to port 22
-		// if not specified.
-		"gateway:2222",               // Pick ONE of the following authentication methods:
-		PrivateKeyFile("ssh/id_rsa"), // 1. private key
-		"0.0.0.0:8080",
-		"myservice:80",
-	) // You can provide a logger for debugging, or remove this line to
-	// make it silent.
-	tunnel.Log = log.New(os.Stdout, "", log.Ldate|log.Lmicroseconds) // Start the server in the background. You will need to wait a
-	// small amount of time for it to bind to the localhost port
-	// before you can start sending connections.
+	publicKey, err := GetPublicKey("ssh/id_rsa")
+	if err != nil {
+		log.Fatalln(fmt.Sprintf("no public key available: %s", err))
+	}
 
-	fmt.Println(tunnel)
-	go tunnel.Start()
-	time.Sleep(100 * time.Millisecond) // NewSSHTunnel will bind to a random port so that you can have
+	sshConfig := &ssh.ClientConfig{
+		User: "root",
+		Auth: []ssh.AuthMethod{
+			publicKey,
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	// Connect to SSH remote server using serverEndpoint
+	serverConn, err := ssh.Dial("tcp", serverEndpoint.String(), sshConfig)
+
+	if err != nil {
+		log.Fatalln(fmt.Printf("Dial INTO remote server error: %s", err))
+	}
+
+	// Listen on remote server port
+	listener, err := serverConn.Listen("tcp", remoteEndpoint.String())
+	if err != nil {
+		log.Fatalln(fmt.Printf("Listen open port ON remote server error: %s", err))
+	}
+	defer listener.Close()
+
+	// handle incoming connections on reverse forwarded tunnel
+	for {
+		// Open a (local) connection to localEndpoint whose content will be forwarded so serverEndpoint
+		local, err := net.Dial("tcp", localEndpoint.String())
+		if err != nil {
+			log.Fatalln(fmt.Printf("Dial INTO local service error: %s", err))
+		}
+
+		client, err := listener.Accept()
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		handleClient(client, local)
+	}
 }
