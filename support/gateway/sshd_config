@@ -1,8 +1,6 @@
 Port 2222
 ListenAddress 0.0.0.0
 
-LogLevel DEBUG3
-
 AuthorizedKeysFile .ssh/authorized_keys
 PasswordAuthentication no
 PermitRootLogin yes
