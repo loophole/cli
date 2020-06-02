@@ -6,7 +6,6 @@ COPY . .
 
 RUN GOOS=linux GOARCH=amd64 go build -mod=vendor -o /loophole
 
-#ADD loophole /app/
 FROM alpine
 
 WORKDIR /root

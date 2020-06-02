@@ -1,4 +1,4 @@
-package main
+package loophole
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func GetPublicKey(file string) (ssh.AuthMethod, error) {
+func getPublicKey(file string) (ssh.AuthMethod, error) {
 	key, err := ioutil.ReadFile(file)
 
 	if err != nil {
@@ -27,6 +27,7 @@ func GetPublicKey(file string) (ssh.AuthMethod, error) {
 	return ssh.PublicKeys(signer), nil
 }
 
+// Endpoint is representing host address
 type Endpoint struct {
 	Host string
 	Port int
@@ -50,7 +51,7 @@ func handleClient(client net.Conn, remote net.Conn) {
 	go func() {
 		_, err := io.Copy(client, remote)
 		if err != nil {
-			log.Println(fmt.Sprintf("error while copy remote->local: %s", err))
+			log.Printf("error while copy remote->local: %s", err)
 		}
 		chDone <- true
 	}()
@@ -59,7 +60,7 @@ func handleClient(client net.Conn, remote net.Conn) {
 	go func() {
 		_, err := io.Copy(remote, client)
 		if err != nil {
-			log.Println(fmt.Sprintf("error while copy local->remote: %s", err))
+			log.Printf("error while copy local->remote: %s", err)
 		}
 		chDone <- true
 	}()
@@ -67,32 +68,31 @@ func handleClient(client net.Conn, remote net.Conn) {
 	<-chDone
 }
 
-// local service to be forwarded
-var localEndpoint = Endpoint{
-	Host: "myservice",
-	Port: 80,
-}
-
 // remote SSH server
 var serverEndpoint = Endpoint{
-	Host: "gateway",
-	Port: 2222,
+	Host: "gateway.loophole.cloud",
+	Port: 8022,
 }
 
 // remote forwarding port (on remote SSH server network)
 var remoteEndpoint = Endpoint{
-	Host: "0.0.0.0",
-	Port: 8080,
+	Host: "127.0.0.1",
+	Port: 80,
 }
 
-func main() {
-	publicKey, err := GetPublicKey("ssh/id_rsa")
+// Start starts the tunnel on specified host and port
+func Start(port int, host string, secure bool, identityFile string) {
+	localEndpoint := Endpoint{
+		Host: host,
+		Port: port,
+	}
+	publicKey, err := getPublicKey(identityFile)
 	if err != nil {
-		log.Fatalln(fmt.Sprintf("no public key available: %s", err))
+		log.Fatalf("no public key available: %s", err)
 	}
 
 	sshConfig := &ssh.ClientConfig{
-		User: "root",
+		User: "whatever_http",
 		Auth: []ssh.AuthMethod{
 			publicKey,
 		},
@@ -103,13 +103,13 @@ func main() {
 	serverConn, err := ssh.Dial("tcp", serverEndpoint.String(), sshConfig)
 
 	if err != nil {
-		log.Fatalln(fmt.Printf("Dial INTO remote server error: %s", err))
+		log.Fatalf("Dial INTO remote server error: %s", err)
 	}
 
 	// Listen on remote server port
 	listener, err := serverConn.Listen("tcp", remoteEndpoint.String())
 	if err != nil {
-		log.Fatalln(fmt.Printf("Listen open port ON remote server error: %s", err))
+		log.Fatalf("Listen open port ON remote server error: %s", err)
 	}
 	defer listener.Close()
 
@@ -118,12 +118,12 @@ func main() {
 		// Open a (local) connection to localEndpoint whose content will be forwarded so serverEndpoint
 		local, err := net.Dial("tcp", localEndpoint.String())
 		if err != nil {
-			log.Fatalln(fmt.Printf("Dial INTO local service error: %s", err))
+			log.Fatalf("Dial INTO local service error: %s", err)
 		}
 
 		client, err := listener.Accept()
 		if err != nil {
-			log.Fatalln(err)
+			log.Fatalf("Failed to accept connection: %v", err)
 		}
 
 		handleClient(client, local)
