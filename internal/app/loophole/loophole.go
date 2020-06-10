@@ -60,10 +60,13 @@ func handleClient(client net.Conn, remote net.Conn) {
 	<-chDone
 }
 
-func getSiteID(apiURL string, publicKey ssh.PublicKey) (string, error) {
+func getSiteID(apiURL string, publicKey ssh.PublicKey, siteID string) (string, error) {
 	publicKeyString := publicKey.Type() + " " + base64.StdEncoding.EncodeToString(publicKey.Marshal())
 	data := map[string]string{
 		"key": publicKeyString,
+	}
+	if siteID != "" {
+		data["id"] = siteID
 	}
 
 	jsonData, _ := json.Marshal(data)
@@ -99,7 +102,7 @@ func Start(config lm.Config) {
 		log.Fatalf("No public key available: %s", err)
 	}
 
-	siteID, err := getSiteID(config.APIURL, publicKey)
+	siteID, err := getSiteID(config.APIURL, publicKey, config.SiteID)
 	if err != nil {
 		log.Fatalf("Error getting site id from API: %v", err)
 	}

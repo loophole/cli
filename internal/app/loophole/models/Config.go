@@ -8,4 +8,5 @@ type Config struct {
 	GatewayEndpoint Endpoint
 	APIURL          string
 	APIPort         int32
+	SiteID          string
 }
