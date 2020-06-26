@@ -7,13 +7,42 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"os"
+	"path"
 
 	lm "github.com/loophole/cli/internal/app/loophole/models"
+	"github.com/mitchellh/go-homedir"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/crypto/ssh"
 )
+
+var logger *zap.Logger
+
+func init() {
+	atomicLevel := zap.NewAtomicLevel()
+	encoderCfg := zap.NewProductionEncoderConfig()
+	logger = zap.New(zapcore.NewCore(
+		zapcore.NewJSONEncoder(encoderCfg),
+		zapcore.Lock(os.Stdout),
+		atomicLevel,
+	))
+	atomicLevel.SetLevel(zap.DebugLevel)
+}
+
+func getLocalStorageDir() string {
+	home, err := homedir.Dir()
+	if err != nil {
+		logger.Fatal("Error reading user home directory ", zap.Error(err))
+	}
+
+	return path.Join(home, ".local", "loophole")
+}
 
 func getPublicKey(file string) (ssh.AuthMethod, ssh.PublicKey, error) {
 	key, err := ioutil.ReadFile(file)
@@ -33,7 +62,7 @@ func getPublicKey(file string) (ssh.AuthMethod, ssh.PublicKey, error) {
 }
 
 // From https://sosedoff.com/2015/05/25/ssh-port-forwarding-with-go.html
-// Handle local client connections and tunnel data to the remote server
+// Handle local client connections and tunnel data to the remote serverq
 // Will use io.Copy - http://golang.org/pkg/io/#Copy
 func handleClient(client net.Conn, remote net.Conn) {
 	defer client.Close()
@@ -43,7 +72,7 @@ func handleClient(client net.Conn, remote net.Conn) {
 	go func() {
 		_, err := io.Copy(client, remote)
 		if err != nil {
-			log.Printf("Error copying data: remote->local: %s", err)
+			logger.Debug("Error copying remote->local:", zap.Error(err))
 		}
 		chDone <- true
 	}()
@@ -52,7 +81,7 @@ func handleClient(client net.Conn, remote net.Conn) {
 	go func() {
 		_, err := io.Copy(remote, client)
 		if err != nil {
-			log.Printf("Error copying data: local->remote: %s", err)
+			logger.Debug("Error copying local->remote:", zap.Error(err))
 		}
 		chDone <- true
 	}()
@@ -60,7 +89,7 @@ func handleClient(client net.Conn, remote net.Conn) {
 	<-chDone
 }
 
-func getSiteID(apiURL string, publicKey ssh.PublicKey, siteID string) (string, error) {
+func registerSite(apiURL string, publicKey ssh.PublicKey, siteID string) (string, error) {
 	publicKeyString := publicKey.Type() + " " + base64.StdEncoding.EncodeToString(publicKey.Marshal())
 	data := map[string]string{
 		"key": publicKeyString,
@@ -80,7 +109,7 @@ func getSiteID(apiURL string, publicKey ssh.PublicKey, siteID string) (string, e
 
 	siteID, ok := result["id"].(string)
 	if !ok {
-		log.Fatalf("Error converting siteId to string")
+		logger.Fatal("Error converting siteId to string")
 	}
 	return siteID, nil
 }
@@ -93,22 +122,26 @@ var remoteEndpoint = lm.Endpoint{
 
 // Start starts the tunnel on specified host and port
 func Start(config lm.Config) {
+	defer logger.Sync()
+
+	logger.Debug("Starting the tunnels..")
+
 	localEndpoint := lm.Endpoint{
 		Host: config.Host,
 		Port: config.Port,
 	}
 	publicKeyAuthMethod, publicKey, err := getPublicKey(config.IdentityFile)
 	if err != nil {
-		log.Fatalf("No public key available: %s", err)
+		logger.Fatal("No public key available", zap.Error(err))
 	}
 
-	siteID, err := getSiteID(config.APIURL, publicKey, config.SiteID)
+	siteID, err := registerSite(config.APIURL, publicKey, config.SiteID)
 	if err != nil {
-		log.Fatalf("Error getting site id from API: %v", err)
+		logger.Fatal("Failed to register site", zap.Error(err))
 	}
 
-	sshConfig := &ssh.ClientConfig{
-		User: siteID,
+	sshConfigHTTPS := &ssh.ClientConfig{
+		User: fmt.Sprintf("%s_https", siteID),
 		Auth: []ssh.AuthMethod{
 			publicKeyAuthMethod,
 		},
@@ -116,37 +149,72 @@ func Start(config lm.Config) {
 	}
 
 	// Connect to SSH remote server using GatewayEndpoint
-	serverConn, err := ssh.Dial("tcp", config.GatewayEndpoint.String(), sshConfig)
+	serverSSHConnHTTPS, err := ssh.Dial("tcp", config.GatewayEndpoint.String(), sshConfigHTTPS)
 
 	if err != nil {
-		log.Fatalf("Dial INTO remote server error: %s", err)
+		logger.Fatal("Dialing SSH Gateway for HTTPS failed", zap.Error(err))
 	}
+	logger.Debug("Dialing SSH Gateway for HTTPS succeded")
 
-	// Listen on remote server port
-	listener, err := serverConn.Listen("tcp", remoteEndpoint.String())
+	certManager := autocert.Manager{
+		Prompt:     autocert.AcceptTOS,
+		HostPolicy: autocert.HostWhitelist(fmt.Sprintf("%s.loophole.site", siteID), "abc.loophole.site"), //Your domain here
+		Cache:      autocert.DirCache(getLocalStorageDir()),                                              //Folder for storing certificates
+		Email:      fmt.Sprintf("%s@loophole.main.dev", siteID),
+	}
+	logger.Debug("Cert Manager created")
+
+	proxy := httputil.NewSingleHostReverseProxy(&url.URL{
+		Scheme: "http",
+		Host:   localEndpoint.String(),
+	})
+	logger.Debug("Proxy via http created", zap.String("target", localEndpoint.String()))
+
+	server := &http.Server{
+		Handler:   proxy,
+		TLSConfig: certManager.TLSConfig(),
+	}
+	logger.Debug("Server for proxy created")
+	proxyListenerHTTPS, err := net.Listen("tcp", ":0")
 	if err != nil {
-		log.Fatalf("Listen open port ON remote server error: %s", err)
+		logger.Fatal("Failed to listen on TLS proxy for HTTPS", zap.Error(err))
+	}
+	logger.Debug("Proxy server for HTTPS listening", zap.Int("port", proxyListenerHTTPS.Addr().(*net.TCPAddr).Port))
+	go server.ServeTLS(proxyListenerHTTPS, "certs/server.crt", "certs/server.key")
+	logger.Debug("Started servers go routines")
+
+	listenerHTTPSOverSSH, err := serverSSHConnHTTPS.Listen("tcp", remoteEndpoint.String())
+	if err != nil {
+		logger.Fatal("Listening on remote endpoint for HTTPS failed", zap.Error(err))
+	}
+	logger.Debug("Listening on remote endpoint for HTTPS succeded")
+
+	defer listenerHTTPSOverSSH.Close()
+
+	proxiedEndpointHTTPS := &lm.Endpoint{
+		Host: "127.0.0.1",
+		Port: int32(proxyListenerHTTPS.Addr().(*net.TCPAddr).Port),
 	}
 
+	logger.Debug("Printing user friendly info about startup")
 	fmt.Println("Loophole")
 	fmt.Println()
 	fmt.Printf("Forwarding http://%s.loophole.site -> %s:%d\n", siteID, config.Host, config.Port)
 	fmt.Printf("Forwarding https://%s.loophole.site -> %s:%d\n", siteID, config.Host, config.Port)
-	defer listener.Close()
-
-	// handle incoming connections on reverse forwarded tunnel
+	logger.Debug("Printed user friendly info about startup")
 	for {
-		// Open a (local) connection to localEndpoint whose content will be forwarded so serverEndpoint
-		local, err := net.Dial("tcp", localEndpoint.String())
+		client, err := listenerHTTPSOverSSH.Accept()
 		if err != nil {
-			log.Fatalf("Dial INTO local service error: %s", err)
+			logger.Debug("Failed to accept connection for HTTPS", zap.Error(err))
+			continue
 		}
-
-		client, err := listener.Accept()
+		logger.Debug("Succeded to accept connection for HTTPS")
+		// Open a (local) connection to proxiedEndpointHTTPS whose content will be forwarded to serverEndpoint
+		local, err := net.Dial("tcp", proxiedEndpointHTTPS.String())
 		if err != nil {
-			log.Fatalf("Failed to accept connection: %v", err)
+			logger.Fatal("Dialing into local proxy for HTTPS failed", zap.Error(err))
 		}
-
-		handleClient(client, local)
+		logger.Debug("Dialing into local proxy for HTTPS succeded")
+		go handleClient(client, local)
 	}
 }

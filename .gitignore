@@ -1,0 +1,7 @@
+# Binaries
+cli
+loophole
+# Certs cache dir
+certs
+# Vendor packages
+vendor

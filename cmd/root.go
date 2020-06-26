@@ -46,7 +46,7 @@ func init() {
 		panic(err)
 	}
 	rootCmd.PersistentFlags().StringVarP(&config.IdentityFile, "identity-file", "i", fmt.Sprintf("%s/.ssh/id_rsa", home), "Private key path")
-	rootCmd.PersistentFlags().StringVar(&config.GatewayEndpoint.Host, "gateway-url", "loophole.host", "Remote gateway URL")
+	rootCmd.PersistentFlags().StringVar(&config.GatewayEndpoint.Host, "gateway-url", "gateway.loophole.host", "Remote gateway URL")
 	rootCmd.PersistentFlags().Int32Var(&config.GatewayEndpoint.Port, "gateway-port", 8022, "Remote gateway port")
 	rootCmd.PersistentFlags().StringVar(&config.APIURL, "api-url", "https://api.loophole.cloud", "Remote gateway URL")
 	rootCmd.PersistentFlags().StringVar(&config.SiteID, "custom-hostname", "", "Custom hostname")
