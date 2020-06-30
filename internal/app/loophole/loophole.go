@@ -12,14 +12,17 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"path"
 
 	lm "github.com/loophole/cli/internal/app/loophole/models"
-	"github.com/mitchellh/go-homedir"
+	"github.com/loophole/cli/internal/pkg/cache"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/crypto/ssh"
+)
+
+const (
+	apiURL = "https://api.loophole.cloud"
 )
 
 var logger *zap.Logger
@@ -32,19 +35,11 @@ func init() {
 		zapcore.Lock(os.Stdout),
 		atomicLevel,
 	))
+
 	atomicLevel.SetLevel(zap.DebugLevel)
 }
 
-func getLocalStorageDir() string {
-	home, err := homedir.Dir()
-	if err != nil {
-		logger.Fatal("Error reading user home directory ", zap.Error(err))
-	}
-
-	return path.Join(home, ".local", "loophole")
-}
-
-func getPublicKey(file string) (ssh.AuthMethod, ssh.PublicKey, error) {
+func parsePublicKey(file string) (ssh.AuthMethod, ssh.PublicKey, error) {
 	key, err := ioutil.ReadFile(file)
 
 	if err != nil {
@@ -130,12 +125,12 @@ func Start(config lm.Config) {
 		Host: config.Host,
 		Port: config.Port,
 	}
-	publicKeyAuthMethod, publicKey, err := getPublicKey(config.IdentityFile)
+	publicKeyAuthMethod, publicKey, err := parsePublicKey(config.IdentityFile)
 	if err != nil {
 		logger.Fatal("No public key available", zap.Error(err))
 	}
 
-	siteID, err := registerSite(config.APIURL, publicKey, config.SiteID)
+	siteID, err := registerSite(apiURL, publicKey, config.SiteID)
 	if err != nil {
 		logger.Fatal("Failed to register site", zap.Error(err))
 	}
@@ -159,7 +154,7 @@ func Start(config lm.Config) {
 	certManager := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
 		HostPolicy: autocert.HostWhitelist(fmt.Sprintf("%s.loophole.site", siteID), "abc.loophole.site"), //Your domain here
-		Cache:      autocert.DirCache(getLocalStorageDir()),                                              //Folder for storing certificates
+		Cache:      autocert.DirCache(cache.GetLocalStorageDir()),                                        //Folder for storing certificates
 		Email:      fmt.Sprintf("%s@loophole.main.dev", siteID),
 	}
 	logger.Debug("Cert Manager created")

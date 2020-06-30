@@ -6,7 +6,6 @@ type Config struct {
 	Host            string
 	IdentityFile    string
 	GatewayEndpoint Endpoint
-	APIURL          string
-	APIPort         int32
 	SiteID          string
+	LogLevel        string
 }

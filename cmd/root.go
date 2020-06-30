@@ -41,15 +41,18 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
+
+	rootCmd.Version = "1.0.0"
+
 	home, err := homedir.Dir()
 	if err != nil {
 		panic(err)
 	}
-	rootCmd.PersistentFlags().StringVarP(&config.IdentityFile, "identity-file", "i", fmt.Sprintf("%s/.ssh/id_rsa", home), "Private key path")
-	rootCmd.PersistentFlags().StringVar(&config.GatewayEndpoint.Host, "gateway-url", "gateway.loophole.host", "Remote gateway URL")
-	rootCmd.PersistentFlags().Int32Var(&config.GatewayEndpoint.Port, "gateway-port", 8022, "Remote gateway port")
-	rootCmd.PersistentFlags().StringVar(&config.APIURL, "api-url", "https://api.loophole.cloud", "Remote gateway URL")
-	rootCmd.PersistentFlags().StringVar(&config.SiteID, "custom-hostname", "", "Custom hostname")
+	rootCmd.Flags().StringVarP(&config.IdentityFile, "identity-file", "i", fmt.Sprintf("%s/.ssh/id_rsa", home), "Private key path")
+	rootCmd.Flags().StringVar(&config.GatewayEndpoint.Host, "gateway-url", "gateway.loophole.host", "Remote gateway URL")
+	rootCmd.Flags().Int32Var(&config.GatewayEndpoint.Port, "gateway-port", 8022, "Remote gateway port")
+	rootCmd.Flags().StringVar(&config.SiteID, "hostname", "", "Custom hostname you want to run service on")
+	// logLevel := zap.LevelFlag("log-level", zap.InfoLevel, "Log level")
 }
 
 // Execute runs command parsing chain
