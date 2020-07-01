@@ -15,6 +15,7 @@ import (
 
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/cache"
+	"github.com/loophole/cli/internal/pkg/token"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/crypto/acme/autocert"
@@ -86,6 +87,16 @@ func handleClient(client net.Conn, remote net.Conn) {
 
 func registerSite(apiURL string, publicKey ssh.PublicKey, siteID string) (string, error) {
 	publicKeyString := publicKey.Type() + " " + base64.StdEncoding.EncodeToString(publicKey.Marshal())
+
+	if !token.IsTokenSaved() {
+		logger.Fatal("Please log in before using Loophole")
+	}
+
+	accessToken, err := token.GetAccessToken()
+	if err != nil {
+		logger.Fatal("There was a problem reading token", zap.Error(err))
+	}
+
 	data := map[string]string{
 		"key": publicKeyString,
 	}
@@ -93,14 +104,32 @@ func registerSite(apiURL string, publicKey ssh.PublicKey, siteID string) (string
 		data["id"] = siteID
 	}
 
-	jsonData, _ := json.Marshal(data)
-	resp, err := http.Post(fmt.Sprintf("%s/site", apiURL), "application/json", bytes.NewBuffer(jsonData))
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		logger.Fatal("There was a problem encoding request body", zap.Error(err))
+	}
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/site", apiURL), bytes.NewBuffer(jsonData))
+	if err != nil {
+		logger.Fatal("There was a problem creating request body", zap.Error(err))
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", err
 	}
 
+	if resp.StatusCode != 200 {
+		logger.Fatal("There was a problem with authorization", zap.Error(fmt.Errorf("Site registration request ended with %d status", resp.StatusCode)))
+	}
+
 	var result map[string]interface{}
 	json.NewDecoder(resp.Body).Decode(&result)
+
+	logger.Debug("Response", zap.Any("result", result))
+	defer resp.Body.Close()
 
 	siteID, ok := result["id"].(string)
 	if !ok {
@@ -154,7 +183,7 @@ func Start(config lm.Config) {
 	certManager := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
 		HostPolicy: autocert.HostWhitelist(fmt.Sprintf("%s.loophole.site", siteID), "abc.loophole.site"), //Your domain here
-		Cache:      autocert.DirCache(cache.GetLocalStorageDir()),                                        //Folder for storing certificates
+		Cache:      autocert.DirCache(cache.GetLocalStorageDir("certs")),                                 //Folder for storing certificates
 		Email:      fmt.Sprintf("%s@loophole.main.dev", siteID),
 	}
 	logger.Debug("Cert Manager created")

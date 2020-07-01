@@ -7,12 +7,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"strings"
 	"time"
 
 	"github.com/logrusorgru/aurora"
-	"github.com/loophole/cli/internal/pkg/cache"
+	"github.com/loophole/cli/internal/pkg/token"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -21,7 +20,7 @@ import (
 const (
 	clientID       = "R569dcCOUErjw1xVZOzqc7OUCiGTYNqN"
 	scope          = "openid"
-	audience       = "https://owlsome.eu.auth0.com/api/v2/"
+	audience       = "https://api.loophole.cloud"
 	timeoutSeconds = 180
 )
 
@@ -39,35 +38,13 @@ func init() {
 	atomicLevel.SetLevel(zap.DebugLevel)
 }
 
-type deviceCodeSpec struct {
-	DeviceCode              string `json:"device_code"`
-	UserCode                string `json:"user_code"`
-	ExpiresIn               int    `json:"expires_in"`
-	Interval                int    `json:"interval"`
-	VeritificationURI       string `json:"verification_uri"`
-	VerificationURIComplete string `json:"verification_uri_complete"`
-}
-
-type authError struct {
-	Error            string `json:"error"`
-	ErrorDescription string `json:"error_description"`
-}
-
-type tokenSpec struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	IDToken      string `json:"id_token"`
-	TokenType    string `json:"token_type"`
-	ExpiresIn    int    `json:"expires_in"`
-}
-
 // completionCmd represents the completion command
 var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Log in to use your account",
 	Long:  "Log in to use your account",
 	Run: func(cmd *cobra.Command, args []string) {
-		if isTokenSaved() {
+		if token.IsTokenSaved() {
 			logger.Fatal("Already logged in, please logout first")
 		}
 
@@ -75,11 +52,11 @@ var loginCmd = &cobra.Command{
 		if err != nil {
 			logger.Fatal("Error obtaining device code", zap.Error(err))
 		}
-		token, err := pollForToken(deviceCodeSpec.DeviceCode, deviceCodeSpec.Interval)
+		tokens, err := pollForToken(deviceCodeSpec.DeviceCode, deviceCodeSpec.Interval)
 		if err != nil {
 			logger.Fatal("Error obtaining token", zap.Error(err))
 		}
-		err = saveToken(token)
+		err = token.SaveToken(tokens)
 		if err != nil {
 			logger.Fatal("Error saving token", zap.Error(err))
 		}
@@ -87,7 +64,7 @@ var loginCmd = &cobra.Command{
 	},
 }
 
-func registerDevice() (*deviceCodeSpec, error) {
+func registerDevice() (*token.DeviceCodeSpec, error) {
 	deviceCodeURL := "https://owlsome.eu.auth0.com/oauth/device/code"
 
 	payload := strings.NewReader(fmt.Sprintf("client_id=%s&scope=%s&audience=%s", url.QueryEscape(clientID), url.QueryEscape(scope), url.QueryEscape(audience)))
@@ -109,7 +86,7 @@ func registerDevice() (*deviceCodeSpec, error) {
 		return nil, fmt.Errorf("There was a problem reading device token response body")
 	}
 
-	var jsonResponseBody deviceCodeSpec
+	var jsonResponseBody token.DeviceCodeSpec
 	err = json.Unmarshal(body, &jsonResponseBody)
 	if err != nil {
 		return nil, fmt.Errorf("There was a problem decoding device token response body")
@@ -120,7 +97,7 @@ func registerDevice() (*deviceCodeSpec, error) {
 	return &jsonResponseBody, nil
 }
 
-func pollForToken(deviceCode string, interval int) (*tokenSpec, error) {
+func pollForToken(deviceCode string, interval int) (*token.TokenSpec, error) {
 	tokenURL := "https://owlsome.eu.auth0.com/oauth/token"
 	grantType := "urn:ietf:params:oauth:grant-type:device_code"
 
@@ -150,7 +127,7 @@ func pollForToken(deviceCode string, interval int) (*tokenSpec, error) {
 		}
 
 		if res.StatusCode > 400 && res.StatusCode < 500 {
-			var jsonResponseBody authError
+			var jsonResponseBody token.AuthError
 			err := json.Unmarshal(body, &jsonResponseBody)
 			if err != nil {
 				logger.Debug("There was a problem decoding token response body", zap.Error(err), zap.ByteString("body", body))
@@ -165,7 +142,7 @@ func pollForToken(deviceCode string, interval int) (*tokenSpec, error) {
 				return nil, fmt.Errorf("The device token got denied, please reinitialize the login")
 			}
 		} else if res.StatusCode >= 200 && res.StatusCode <= 300 {
-			var jsonResponseBody tokenSpec
+			var jsonResponseBody token.TokenSpec
 			err := json.Unmarshal(body, &jsonResponseBody)
 			if err != nil {
 				logger.Debug("There was a problem decoding token response body", zap.Error(err))
@@ -176,32 +153,6 @@ func pollForToken(deviceCode string, interval int) (*tokenSpec, error) {
 			return nil, fmt.Errorf("Unexpected response from authorization server: %s", body)
 		}
 	}
-}
-
-func saveToken(token *tokenSpec) error {
-	storageDir := cache.GetLocalStorageDir()
-	tokensLocation := path.Join(storageDir, "tokens.json")
-
-	tokenBytes, err := json.Marshal(token)
-	if err != nil {
-		return fmt.Errorf("There was a problem encoding token: %v", err)
-	}
-	err = ioutil.WriteFile(tokensLocation, tokenBytes, 0644)
-	if err != nil {
-		return fmt.Errorf("There was a problem writing tokens file: %v", err)
-	}
-	return nil
-}
-
-func isTokenSaved() bool {
-	storageDir := cache.GetLocalStorageDir()
-	tokensLocation := path.Join(storageDir, "tokens.json")
-	if _, err := os.Stat(tokensLocation); os.IsNotExist(err) {
-		return false
-	} else if err != nil {
-		logger.Fatal("There was a problem reading token file", zap.Error(err))
-	}
-	return true
 }
 
 func init() {
