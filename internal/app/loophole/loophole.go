@@ -122,7 +122,12 @@ func registerSite(apiURL string, publicKey ssh.PublicKey, siteID string) (string
 	}
 
 	if resp.StatusCode != 200 {
-		logger.Fatal("There was a problem with authorization", zap.Error(fmt.Errorf("Site registration request ended with %d status", resp.StatusCode)))
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return "", fmt.Errorf("Site registration request ended with %d status and no message", resp.StatusCode)
+		}
+		return "", fmt.Errorf("Site registration request ended with %d status and message: %s", resp.StatusCode, string(body))
 	}
 
 	var result map[string]interface{}
@@ -161,7 +166,16 @@ func Start(config lm.Config) {
 
 	siteID, err := registerSite(apiURL, publicKey, config.SiteID)
 	if err != nil {
-		logger.Fatal("Failed to register site", zap.Error(err))
+		logger.Debug("Failed to register site", zap.Error(err))
+		logger.Debug("Trying to refresh token")
+		err := token.RefreshToken()
+		if err != nil {
+			logger.Fatal("Failed to refresh token", zap.Error(err))
+		}
+		siteID, err = registerSite(apiURL, publicKey, config.SiteID)
+		if err != nil {
+			logger.Fatal("Failed to register site", zap.Error(err))
+		}
 	}
 
 	sshConfigHTTPS := &ssh.ClientConfig{
