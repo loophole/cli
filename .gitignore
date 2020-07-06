@@ -1,6 +1,7 @@
 # Binaries
 cli
 loophole
+dist
 # Certs cache dir
 certs
 # Vendor packages
