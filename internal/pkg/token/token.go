@@ -19,12 +19,11 @@ import (
 var logger *zap.Logger
 
 const (
-	deviceCodeURL  = "https://owlsome.eu.auth0.com/oauth/device/code"
-	tokenURL       = "https://owlsome.eu.auth0.com/oauth/token"
-	clientID       = "R569dcCOUErjw1xVZOzqc7OUCiGTYNqN"
-	scope          = "openid offline_access"
-	audience       = "https://api.loophole.cloud"
-	timeoutSeconds = 180
+	deviceCodeURL = "https://owlsome.eu.auth0.com/oauth/device/code"
+	tokenURL      = "https://owlsome.eu.auth0.com/oauth/token"
+	clientID      = "R569dcCOUErjw1xVZOzqc7OUCiGTYNqN"
+	scope         = "openid offline_access"
+	audience      = "https://api.loophole.cloud"
 )
 
 func init() {
@@ -176,7 +175,6 @@ func PollForToken(deviceCode string, interval int) (*TokenSpec, error) {
 
 func RefreshToken() error {
 	grantType := "refresh_token"
-	clientID := "R569dcCOUErjw1xVZOzqc7OUCiGTYNqN"
 	token, err := GetRefreshToken()
 	if err != nil {
 		return err
