@@ -218,7 +218,7 @@ func Start(config lm.Config) {
 		logger.Fatal("Failed to listen on TLS proxy for HTTPS", zap.Error(err))
 	}
 	logger.Debug("Proxy server for HTTPS listening", zap.Int("port", proxyListenerHTTPS.Addr().(*net.TCPAddr).Port))
-	go server.ServeTLS(proxyListenerHTTPS, "certs/server.crt", "certs/server.key")
+	go server.ServeTLS(proxyListenerHTTPS, "", "")
 	logger.Debug("Started servers go routines")
 
 	listenerHTTPSOverSSH, err := serverSSHConnHTTPS.Listen("tcp", remoteEndpoint.String())
