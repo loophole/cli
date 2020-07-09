@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/loophole/cli/internal/pkg/token"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -12,10 +13,14 @@ var logoutCmd = &cobra.Command{
 	Long:  "Logout from your account",
 	Run: func(cmd *cobra.Command, args []string) {
 		if !token.IsTokenSaved() {
-			logger.Fatal("Not logged in, nothing to do")
+			log.Fatal().Msg("Not logged in, nothing to do")
 		}
 
-		token.DeleteTokens()
+		err := token.DeleteTokens()
+		if err != nil {
+			log.Fatal().Err(err).Msg("There as a problem logging out")
+		}
+		log.Info().Msg("Logged out succesfully")
 	},
 }
 
