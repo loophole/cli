@@ -8,4 +8,5 @@ type Config struct {
 	GatewayEndpoint Endpoint
 	SiteID          string
 	LogLevel        string
+	HTTPS           bool
 }

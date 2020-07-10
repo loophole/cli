@@ -12,11 +12,8 @@ import (
 
 	"github.com/logrusorgru/aurora"
 	"github.com/loophole/cli/internal/pkg/cache"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/rs/zerolog/log"
 )
-
-var logger *zap.Logger
 
 const (
 	deviceCodeURL = "https://owlsome.eu.auth0.com/oauth/device/code"
@@ -25,18 +22,6 @@ const (
 	scope         = "openid offline_access"
 	audience      = "https://api.loophole.cloud"
 )
-
-func init() {
-	atomicLevel := zap.NewAtomicLevel()
-	encoderCfg := zap.NewProductionEncoderConfig()
-	logger = zap.New(zapcore.NewCore(
-		zapcore.NewJSONEncoder(encoderCfg),
-		zapcore.Lock(os.Stdout),
-		atomicLevel,
-	))
-
-	atomicLevel.SetLevel(zap.DebugLevel)
-}
 
 type DeviceCodeSpec struct {
 	DeviceCode              string `json:"device_code"`
@@ -66,7 +51,7 @@ func IsTokenSaved() bool {
 	if _, err := os.Stat(tokensLocation); os.IsNotExist(err) {
 		return false
 	} else if err != nil {
-		logger.Fatal("There was a problem reading tokens file", zap.Error(err))
+		log.Fatal().Err(err).Msg("There was a problem reading tokens file")
 	}
 	return true
 }
@@ -111,7 +96,7 @@ func RegisterDevice() (*DeviceCodeSpec, error) {
 		return nil, fmt.Errorf("There was a problem decoding device token response body")
 	}
 
-	fmt.Printf("Please open %s and use %s code to log in\n", aurora.Yellow(jsonResponseBody.VeritificationURI), aurora.Yellow(jsonResponseBody.UserCode))
+	log.Info().Msg(fmt.Sprintf("Please open %s and use %s code to log in", aurora.Yellow(jsonResponseBody.VeritificationURI), aurora.Yellow(jsonResponseBody.UserCode)))
 
 	return &jsonResponseBody, nil
 }
@@ -120,27 +105,37 @@ func PollForToken(deviceCode string, interval int) (*TokenSpec, error) {
 	grantType := "urn:ietf:params:oauth:grant-type:device_code"
 
 	pollingInterval := time.Duration(interval) * time.Second
-	logger.Debug("Polling with interval", zap.Duration("interval", pollingInterval), zap.String("unit", "second"))
+	log.Debug().
+		Dur("interval", pollingInterval).
+		Str("unit", "second").
+		Msg("Polling with interval")
 
 	for {
-		payload := strings.NewReader(fmt.Sprintf("grant_type=%s&device_code=%s&client_id=%s", url.QueryEscape(grantType), url.QueryEscape(deviceCode), url.QueryEscape(clientID)))
+		payload := strings.NewReader(
+			fmt.Sprintf("grant_type=%s&device_code=%s&client_id=%s",
+				url.QueryEscape(grantType),
+				url.QueryEscape(deviceCode),
+				url.QueryEscape(clientID)))
 
 		req, err := http.NewRequest("POST", tokenURL, payload)
 		if err != nil {
-			logger.Debug("There was a problem creating HTTP POST request for token", zap.Error(err))
+			log.Debug().Err(err).Msg("There was a problem creating HTTP POST request for token")
 		}
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
 		time.Sleep(pollingInterval)
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
-			logger.Debug("There was a problem executing request for token", zap.Error(err))
+			log.Debug().Err(err).Msg("There was a problem executing request for token")
 			continue
 		}
 		defer res.Body.Close()
 		body, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			logger.Debug("There was a problem reading token response body", zap.Error(err), zap.ByteString("body", body))
+			log.Debug().
+				Bytes("body", body).
+				Err(err).
+				Msg("There was a problem reading token response body")
 			continue
 		}
 
@@ -148,10 +143,16 @@ func PollForToken(deviceCode string, interval int) (*TokenSpec, error) {
 			var jsonResponseBody AuthError
 			err := json.Unmarshal(body, &jsonResponseBody)
 			if err != nil {
-				logger.Debug("There was a problem decoding token response body", zap.Error(err), zap.ByteString("body", body))
+				log.Debug().
+					Err(err).
+					Bytes("body", body).
+					Msg("There was a problem decoding token response body")
 				continue
 			}
-			logger.Debug("Error response", zap.String("error", jsonResponseBody.Error), zap.String("errorDescription", jsonResponseBody.ErrorDescription))
+			log.Debug().
+				Str("error", jsonResponseBody.Error).
+				Str("errorDescription", jsonResponseBody.ErrorDescription).
+				Msg("Error response")
 			if jsonResponseBody.Error == "authorization_pending" || jsonResponseBody.Error == "slow_down" {
 				continue
 			} else if jsonResponseBody.Error == "expired_token" || jsonResponseBody.Error == "invalid_grand" {
@@ -163,7 +164,7 @@ func PollForToken(deviceCode string, interval int) (*TokenSpec, error) {
 			var jsonResponseBody TokenSpec
 			err := json.Unmarshal(body, &jsonResponseBody)
 			if err != nil {
-				logger.Debug("There was a problem decoding token response body", zap.Error(err))
+				log.Debug().Err(err).Msg("There was a problem decoding token response body")
 				continue
 			}
 			return &jsonResponseBody, nil
@@ -202,7 +203,10 @@ func RefreshToken() error {
 		if err != nil {
 			return err
 		}
-		logger.Debug("Error response", zap.String("error", jsonResponseBody.Error), zap.String("errorDescription", jsonResponseBody.ErrorDescription))
+		log.Debug().
+			Str("error", jsonResponseBody.Error).
+			Str("errorDescription", jsonResponseBody.ErrorDescription).
+			Msg("Error response")
 		if jsonResponseBody.Error == "expired_token" || jsonResponseBody.Error == "invalid_grand" {
 			return fmt.Errorf("The device token expired, please reinitialize the login")
 		} else if jsonResponseBody.Error == "access_denied" {
@@ -229,13 +233,14 @@ func RefreshToken() error {
 
 }
 
-func DeleteTokens() {
+func DeleteTokens() error {
 	tokensLocation := cache.GetLocalStorageFile("tokens.json")
 
 	err := os.Remove(tokensLocation)
 	if err != nil {
-		logger.Fatal("There was a problem removing tokens file", zap.Error(err))
+		return fmt.Errorf("There was a problem removing tokens file: %v", err)
 	}
+	return nil
 }
 
 func GetAccessToken() (string, error) {

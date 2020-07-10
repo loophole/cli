@@ -1,28 +1,12 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/loophole/cli/internal/pkg/token"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
-
-var logger *zap.Logger
-
-func init() {
-	atomicLevel := zap.NewAtomicLevel()
-	encoderCfg := zap.NewProductionEncoderConfig()
-	logger = zap.New(zapcore.NewCore(
-		zapcore.NewJSONEncoder(encoderCfg),
-		zapcore.Lock(os.Stdout),
-		atomicLevel,
-	))
-
-	atomicLevel.SetLevel(zap.DebugLevel)
-}
 
 // completionCmd represents the completion command
 var loginCmd = &cobra.Command{
@@ -31,22 +15,23 @@ var loginCmd = &cobra.Command{
 	Long:  "Log in to use your account",
 	Run: func(cmd *cobra.Command, args []string) {
 		if token.IsTokenSaved() {
-			logger.Fatal("Already logged in, please logout first")
+			log.Fatal().Msg("Already logged in, please logout first to reinitialize login")
+			os.Exit(1)
 		}
 
 		deviceCodeSpec, err := token.RegisterDevice()
 		if err != nil {
-			logger.Fatal("Error obtaining device code", zap.Error(err))
+			log.Fatal().Err(err).Msg("Error obtaining device code")
 		}
 		tokens, err := token.PollForToken(deviceCodeSpec.DeviceCode, deviceCodeSpec.Interval)
 		if err != nil {
-			logger.Fatal("Error obtaining token", zap.Error(err))
+			log.Fatal().Err(err).Msg("Error obtaining token")
 		}
 		err = token.SaveToken(tokens)
 		if err != nil {
-			logger.Fatal("Error saving token", zap.Error(err))
+			log.Fatal().Err(err).Msg("Error saving token")
 		}
-		fmt.Println("Logged in succesfully")
+		log.Info().Msg("Logged in succesfully")
 	},
 }
 
