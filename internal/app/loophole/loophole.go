@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -23,6 +24,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
@@ -42,11 +44,20 @@ func parsePublicKey(file string) (ssh.AuthMethod, ssh.PublicKey, error) {
 		return nil, nil, err
 	}
 
+	var passwordError *ssh.PassphraseMissingError
 	signer, err := ssh.ParsePrivateKey(key)
 
 	if err != nil {
-
-		return nil, nil, err
+		if errors.As(err, &passwordError) {
+			fmt.Print("Enter SSH password:")
+			password, _ := terminal.ReadPassword(int(os.Stdin.Fd()))
+			signer, err = ssh.ParsePrivateKeyWithPassphrase(key, []byte(password))
+			if err != nil {
+				return nil, nil, err
+			}
+		} else {
+			return nil, nil, err
+		}
 	}
 
 	return ssh.PublicKeys(signer), signer.PublicKey(), nil
