@@ -180,179 +180,192 @@ func loadingFailure(loader *spinner.Spinner) {
 
 // Start starts the tunnel on specified host and port
 func Start(config lm.Config) {
+	var publicKeyAuthMethod ssh.AuthMethod
+	var publicKey ssh.PublicKey
 
 	loader := spinner.New(spinner.CharSets[9], 100*time.Millisecond, spinner.WithWriter(os.Stderr))
 	printWelcomeMessage()
+RESTARTCONNECTION:
+	for {
 
-	localEndpoint := lm.Endpoint{
-		Host: config.Host,
-		Port: config.Port,
-	}
+		localEndpoint := lm.Endpoint{
+			Host: config.Host,
+			Port: config.Port,
+		}
 
-	if el := log.Debug(); el.Enabled() {
-		el.Msg("Checking public key availability")
-	}
-	publicKeyAuthMethod, publicKey, err := parsePublicKey(config.IdentityFile)
-	if err != nil {
-		log.Fatal().Err(err).Msg("No public key available")
-	}
+		if el := log.Debug(); el.Enabled() {
+			el.Msg("Checking public key availability")
+		}
 
-	startLoading(loader, ":wave: Registering your domain...")
+		var err error
+		if publicKey == nil {
+			publicKeyAuthMethod, publicKey, err = parsePublicKey(config.IdentityFile)
+			if err != nil {
+				log.Fatal().Err(err).Msg("No public key available")
+			}
+		}
 
-	if el := log.Debug(); el.Enabled() {
-		fmt.Println()
-		el.Msg("Registering site")
-	}
-	siteID, err := registerSite(apiURL, publicKey, config.SiteID)
-	if err != nil {
+		startLoading(loader, ":wave: Registering your domain...")
+
 		if el := log.Debug(); el.Enabled() {
 			fmt.Println()
-			el.Err(err).Msg("Failed to register site")
+			el.Msg("Registering site")
 		}
-		if el := log.Debug(); el.Enabled() {
-			el.Msg("Trying to refresh token")
-		}
-		if err := token.RefreshToken(); err != nil {
-			loadingFailure(loader)
-			log.Fatal().Err(err).Msg("Failed to refresh token")
-		}
-		siteID, err = registerSite(apiURL, publicKey, config.SiteID)
+		siteID, err := registerSite(apiURL, publicKey, config.SiteID)
 		if err != nil {
-			loadingFailure(loader)
-			log.Fatal().Err(err).Msg("Failed to register site")
-		}
-	}
-	loadingSuccess(loader)
-
-	sshConfigHTTPS := &ssh.ClientConfig{
-		User: fmt.Sprintf("%s_https", siteID),
-		Auth: []ssh.AuthMethod{
-			publicKeyAuthMethod,
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	}
-	startLoading(loader, ":lock: Initializing secure tunnel... ")
-
-	if el := log.Debug(); el.Enabled() {
-		fmt.Println()
-		el.Msg("Dialing gatway to estabilish the tunnel..")
-	}
-	serverSSHConnHTTPS, err := ssh.Dial("tcp", config.GatewayEndpoint.String(), sshConfigHTTPS)
-	if err != nil {
-		loadingFailure(loader)
-		log.Fatal().Err(err).Msg("Dialing SSH Gateway for HTTPS failed")
-	}
-	if el := log.Debug(); el.Enabled() {
-		fmt.Println()
-		el.Msg("Dialing SSH Gateway for HTTPS succeded")
-	}
-	loadingSuccess(loader)
-
-	startLoading(loader, ":key: Obtaining TLS certificate provider... ")
-
-	certManager := autocert.Manager{
-		Prompt:     autocert.AcceptTOS,
-		HostPolicy: autocert.HostWhitelist(fmt.Sprintf("%s.loophole.site", siteID), "abc.loophole.site"), //Your domain here
-		Cache:      autocert.DirCache(cache.GetLocalStorageDir("certs")),                                 //Folder for storing certificates
-		Email:      fmt.Sprintf("%s@loophole.main.dev", siteID),
-	}
-	if el := log.Debug(); el.Enabled() {
-		fmt.Println()
-		el.Msg("Cert Manager created")
-	}
-
-	proxy := httputil.NewSingleHostReverseProxy(&url.URL{
-		Scheme: "http",
-		Host:   localEndpoint.String(),
-	})
-	if el := log.Debug(); el.Enabled() {
-		el.
-			Str("target", localEndpoint.String()).
-			Msg("Proxy via http created")
-	}
-	server := &http.Server{
-		Handler:   proxy,
-		TLSConfig: certManager.TLSConfig(),
-	}
-	loadingSuccess(loader)
-
-	startLoading(loader, ":cloud:  Starting the server... ")
-
-	if el := log.Debug(); el.Enabled() {
-		fmt.Println()
-		el.Msg("Server for proxy created")
-	}
-	proxyListenerHTTPS, err := net.Listen("tcp", ":0")
-	if err != nil {
-		loadingFailure(loader)
-		log.Fatal().Err(err).Msg("Failed to listen on TLS proxy for HTTPS")
-	}
-	if el := log.Debug(); el.Enabled() {
-		el.
-			Int("port", proxyListenerHTTPS.Addr().(*net.TCPAddr).Port).
-			Msg("Proxy listener for HTTPS started")
-	}
-	go func() {
-		err := server.ServeTLS(proxyListenerHTTPS, "", "")
-		if err != nil {
-			loadingFailure(loader)
-			log.Fatal().Msg("Failed to start TLS server")
-		}
-	}()
-	if el := log.Debug(); el.Enabled() {
-		el.Msg("Started server TLS server")
-	}
-	listenerHTTPSOverSSH, err := serverSSHConnHTTPS.Listen("tcp", remoteEndpoint.String())
-	if err != nil {
-		loadingFailure(loader)
-		log.Fatal().Err(err).Msg("Listening on remote endpoint for HTTPS failed")
-	}
-	if el := log.Debug(); el.Enabled() {
-		fmt.Println()
-		el.Msg("Listening on remote endpoint for HTTPS succeded")
-	}
-
-	defer listenerHTTPSOverSSH.Close()
-	loadingSuccess(loader)
-
-	proxiedEndpointHTTPS := &lm.Endpoint{
-		Host: "127.0.0.1",
-		Port: int32(proxyListenerHTTPS.Addr().(*net.TCPAddr).Port),
-	}
-
-	fmt.Println()
-	fmt.Print("Forwarding ")
-	fmt.Print(aurora.Green(fmt.Sprintf("http://%s.loophole.site", siteID)))
-	fmt.Print(" -> ")
-	fmt.Print(aurora.Green(fmt.Sprintf("%s:%d", config.Host, config.Port)))
-	fmt.Println()
-	fmt.Print("Forwarding ")
-	fmt.Print(aurora.Green(fmt.Sprintf("https://%s.loophole.site", siteID)))
-	fmt.Print(" -> ")
-	fmt.Print(aurora.Green(fmt.Sprintf("%s:%d", config.Host, config.Port)))
-	fmt.Println()
-	fmt.Println()
-	emoji.Println(fmt.Sprintf(":nerd: %s", aurora.Italic("TLS Certificate will be obtained with first request to the above address, therefore first execution may be slower")))
-	emoji.Println(":newspaper: Logs:")
-
-	log.Info().Msg("Awaiting connections...")
-	for {
-		client, err := listenerHTTPSOverSSH.Accept()
-		if err != nil {
-			log.Info().Err(err).Msg("Failed to accept connection over HTTPS")
-			continue
-		}
-		go func() {
-			log.Info().Msg("Succeded to accept connection over HTTPS")
-			// Open a (local) connection to proxiedEndpointHTTPS whose content will be forwarded to serverEndpoint
-			local, err := net.Dial("tcp", proxiedEndpointHTTPS.String())
-			if err != nil {
-				log.Fatal().Err(err).Msg("Dialing into local proxy for HTTPS failed")
+			if el := log.Debug(); el.Enabled() {
+				fmt.Println()
+				el.Err(err).Msg("Failed to register site")
 			}
 			if el := log.Debug(); el.Enabled() {
-				el.Msg("Dialing into local proxy for HTTPS succeded")
+				el.Msg("Trying to refresh token")
 			}
-			handleClient(client, local)
+			if err := token.RefreshToken(); err != nil {
+				loadingFailure(loader)
+				log.Fatal().Err(err).Msg("Failed to refresh token")
+			}
+			siteID, err = registerSite(apiURL, publicKey, config.SiteID)
+			if err != nil {
+				loadingFailure(loader)
+				log.Fatal().Err(err).Msg("Failed to register site")
+			}
+		}
+		loadingSuccess(loader)
+
+		sshConfigHTTPS := &ssh.ClientConfig{
+			User: fmt.Sprintf("%s_https", siteID),
+			Auth: []ssh.AuthMethod{
+				publicKeyAuthMethod,
+			},
+			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		}
+		startLoading(loader, ":lock: Initializing secure tunnel... ")
+
+		if el := log.Debug(); el.Enabled() {
+			fmt.Println()
+			el.Msg("Dialing gatway to estabilish the tunnel..")
+		}
+		serverSSHConnHTTPS, err := ssh.Dial("tcp", config.GatewayEndpoint.String(), sshConfigHTTPS)
+		if err != nil {
+			loadingFailure(loader)
+			log.Fatal().Err(err).Msg("Dialing SSH Gateway for HTTPS failed")
+		}
+		if el := log.Debug(); el.Enabled() {
+			fmt.Println()
+			el.Msg("Dialing SSH Gateway for HTTPS succeeded")
+		}
+		loadingSuccess(loader)
+
+		startLoading(loader, ":key: Obtaining TLS certificate provider... ")
+
+		certManager := autocert.Manager{
+			Prompt:     autocert.AcceptTOS,
+			HostPolicy: autocert.HostWhitelist(fmt.Sprintf("%s.loophole.site", siteID), "abc.loophole.site"), //Your domain here
+			Cache:      autocert.DirCache(cache.GetLocalStorageDir("certs")),                                 //Folder for storing certificates
+			Email:      fmt.Sprintf("%s@loophole.main.dev", siteID),
+		}
+		if el := log.Debug(); el.Enabled() {
+			fmt.Println()
+			el.Msg("Cert Manager created")
+		}
+
+		proxy := httputil.NewSingleHostReverseProxy(&url.URL{
+			Scheme: "http",
+			Host:   localEndpoint.String(),
+		})
+		if el := log.Debug(); el.Enabled() {
+			el.
+				Str("target", localEndpoint.String()).
+				Msg("Proxy via http created")
+		}
+		server := &http.Server{
+			Handler:   proxy,
+			TLSConfig: certManager.TLSConfig(),
+		}
+		loadingSuccess(loader)
+
+		startLoading(loader, ":cloud:  Starting the server... ")
+
+		if el := log.Debug(); el.Enabled() {
+			fmt.Println()
+			el.Msg("Server for proxy created")
+		}
+		proxyListenerHTTPS, err := net.Listen("tcp", ":0")
+		if err != nil {
+			loadingFailure(loader)
+			log.Fatal().Err(err).Msg("Failed to listen on TLS proxy for HTTPS")
+		}
+		if el := log.Debug(); el.Enabled() {
+			el.
+				Int("port", proxyListenerHTTPS.Addr().(*net.TCPAddr).Port).
+				Msg("Proxy listener for HTTPS started")
+		}
+		go func() {
+			err := server.ServeTLS(proxyListenerHTTPS, "", "")
+			if err != nil {
+				loadingFailure(loader)
+				log.Fatal().Msg("Failed to start TLS server")
+			}
 		}()
+		if el := log.Debug(); el.Enabled() {
+			el.Msg("Started server TLS server")
+		}
+		listenerHTTPSOverSSH, err := serverSSHConnHTTPS.Listen("tcp", remoteEndpoint.String())
+		if err != nil {
+			loadingFailure(loader)
+			log.Fatal().Err(err).Msg("Listening on remote endpoint for HTTPS failed")
+		}
+		if el := log.Debug(); el.Enabled() {
+			fmt.Println()
+			el.Msg("Listening on remote endpoint for HTTPS succeeded")
+		}
+
+		defer listenerHTTPSOverSSH.Close()
+		loadingSuccess(loader)
+
+		proxiedEndpointHTTPS := &lm.Endpoint{
+			Host: "127.0.0.1",
+			Port: int32(proxyListenerHTTPS.Addr().(*net.TCPAddr).Port),
+		}
+
+		fmt.Println()
+		fmt.Print("Forwarding ")
+		fmt.Print(aurora.Green(fmt.Sprintf("http://%s.loophole.site", siteID)))
+		fmt.Print(" -> ")
+		fmt.Print(aurora.Green(fmt.Sprintf("%s:%d", config.Host, config.Port)))
+		fmt.Println()
+		fmt.Print("Forwarding ")
+		fmt.Print(aurora.Green(fmt.Sprintf("https://%s.loophole.site", siteID)))
+		fmt.Print(" -> ")
+		fmt.Print(aurora.Green(fmt.Sprintf("%s:%d", config.Host, config.Port)))
+		fmt.Println()
+		fmt.Println()
+		emoji.Println(fmt.Sprintf(":nerd: %s", aurora.Italic("TLS Certificate will be obtained with first request to the above address, therefore first execution may be slower")))
+		emoji.Println(":newspaper: Logs:")
+
+		log.Info().Msg("Awaiting connections...")
+
+		for {
+			client, err := listenerHTTPSOverSSH.Accept()
+			if err == io.EOF {
+				log.Info().Err(err).Msg("Connection dropped, reconnecting...")
+				continue RESTARTCONNECTION
+			} else if err != nil {
+				log.Info().Err(err).Msg("Failed to accept connection over HTTPS")
+				continue
+			}
+			go func() {
+				log.Info().Msg("Succeeded to accept connection over HTTPS")
+				// Open a (local) connection to proxiedEndpointHTTPS whose content will be forwarded to serverEndpoint
+				local, err := net.Dial("tcp", proxiedEndpointHTTPS.String())
+				if err != nil {
+					log.Fatal().Err(err).Msg("Dialing into local proxy for HTTPS failed")
+				}
+				if el := log.Debug(); el.Enabled() {
+					el.Msg("Dialing into local proxy for HTTPS succeeded")
+				}
+				handleClient(client, local)
+			}()
+		}
 	}
 }
