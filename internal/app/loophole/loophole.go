@@ -10,6 +10,8 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -37,6 +39,16 @@ var remoteEndpoint = lm.Endpoint{
 }
 
 var colorableOutput = colorable.NewColorableStdout()
+
+func setupCloseHandler(successfulConnectionOccured *bool) {
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		printFeedbackMessage(successfulConnectionOccured)
+		os.Exit(0)
+	}()
+}
 
 func parsePublicKey(file string) (ssh.AuthMethod, ssh.PublicKey, error) {
 	key, err := ioutil.ReadFile(file)
@@ -104,6 +116,14 @@ func printWelcomeMessage() {
 	fmt.Println()
 }
 
+func printFeedbackMessage(successfulConnectionOccured *bool) {
+	fmt.Println()
+	fmt.Println("Goodbye!")
+	if *successfulConnectionOccured {
+		fmt.Print(aurora.Cyan("Thank you for using Loophole. Please give us your feedback via ADDLINKHERE and help us improve our services. "))
+	}
+}
+
 func startLoading(loader *spinner.Spinner, message string) {
 	if el := log.Debug(); !el.Enabled() {
 		loader.Prefix = fmt.Sprintf("%s ", message)
@@ -128,6 +148,10 @@ func loadingFailure(loader *spinner.Spinner) {
 }
 
 func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, publicKey *ssh.PublicKey, siteSpecs client.SiteSpecification) (net.Listener, *lm.Endpoint, client.SiteSpecification) {
+	var successfulConnectionOccured *bool
+	successfulConnectionOccured = new(bool)
+	*successfulConnectionOccured = false
+	setupCloseHandler(successfulConnectionOccured)
 
 	loader := spinner.New(spinner.CharSets[9], 100*time.Millisecond, spinner.WithWriter(colorable.NewColorableStdout()))
 
