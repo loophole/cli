@@ -178,11 +178,9 @@ func loadingFailure(loader *spinner.Spinner) {
 	loader.Stop()
 }
 
-// Start starts the tunnel on specified host and port
-func Start(config lm.Config) {
+func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, publicKey *ssh.PublicKey) (net.Listener, *lm.Endpoint) {
 
 	loader := spinner.New(spinner.CharSets[9], 100*time.Millisecond, spinner.WithWriter(os.Stderr))
-	printWelcomeMessage()
 
 	localEndpoint := lm.Endpoint{
 		Host: config.Host,
@@ -192,9 +190,13 @@ func Start(config lm.Config) {
 	if el := log.Debug(); el.Enabled() {
 		el.Msg("Checking public key availability")
 	}
-	publicKeyAuthMethod, publicKey, err := parsePublicKey(config.IdentityFile)
-	if err != nil {
-		log.Fatal().Err(err).Msg("No public key available")
+
+	var err error
+	if *publicKey == nil {
+		*publicKeyAuthMethod, *publicKey, err = parsePublicKey(config.IdentityFile)
+		if err != nil {
+			log.Fatal().Err(err).Msg("No public key available")
+		}
 	}
 
 	startLoading(loader, ":wave: Registering your domain...")
@@ -203,7 +205,7 @@ func Start(config lm.Config) {
 		fmt.Println()
 		el.Msg("Registering site")
 	}
-	siteID, err := registerSite(apiURL, publicKey, config.SiteID)
+	siteID, err := registerSite(apiURL, *publicKey, config.SiteID)
 	if err != nil {
 		if el := log.Debug(); el.Enabled() {
 			fmt.Println()
@@ -216,7 +218,7 @@ func Start(config lm.Config) {
 			loadingFailure(loader)
 			log.Fatal().Err(err).Msg("Failed to refresh token")
 		}
-		siteID, err = registerSite(apiURL, publicKey, config.SiteID)
+		siteID, err = registerSite(apiURL, *publicKey, config.SiteID)
 		if err != nil {
 			loadingFailure(loader)
 			log.Fatal().Err(err).Msg("Failed to register site")
@@ -227,7 +229,7 @@ func Start(config lm.Config) {
 	sshConfigHTTPS := &ssh.ClientConfig{
 		User: fmt.Sprintf("%s_https", siteID),
 		Auth: []ssh.AuthMethod{
-			publicKeyAuthMethod,
+			*publicKeyAuthMethod,
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
@@ -244,7 +246,7 @@ func Start(config lm.Config) {
 	}
 	if el := log.Debug(); el.Enabled() {
 		fmt.Println()
-		el.Msg("Dialing SSH Gateway for HTTPS succeded")
+		el.Msg("Dialing SSH Gateway for HTTPS succeeded")
 	}
 	loadingSuccess(loader)
 
@@ -309,10 +311,9 @@ func Start(config lm.Config) {
 	}
 	if el := log.Debug(); el.Enabled() {
 		fmt.Println()
-		el.Msg("Listening on remote endpoint for HTTPS succeded")
+		el.Msg("Listening on remote endpoint for HTTPS succeeded")
 	}
 
-	defer listenerHTTPSOverSSH.Close()
 	loadingSuccess(loader)
 
 	proxiedEndpointHTTPS := &lm.Endpoint{
@@ -336,21 +337,39 @@ func Start(config lm.Config) {
 	emoji.Println(":newspaper: Logs:")
 
 	log.Info().Msg("Awaiting connections...")
+	return listenerHTTPSOverSSH, proxiedEndpointHTTPS
+}
+
+// Start starts the tunnel on specified host and port
+func Start(config lm.Config) {
+	printWelcomeMessage()
+
+	var publicKeyAuthMethod *ssh.AuthMethod = new(ssh.AuthMethod)
+	var publicKey *ssh.PublicKey = new(ssh.PublicKey)
+
+	listenerHTTPSOverSSH, proxiedEndpointHTTPS := generateListener(config, publicKeyAuthMethod, publicKey)
+	defer listenerHTTPSOverSSH.Close()
+
 	for {
 		client, err := listenerHTTPSOverSSH.Accept()
-		if err != nil {
+		if err == io.EOF {
+			log.Info().Err(err).Msg("Connection dropped, reconnecting...")
+			listenerHTTPSOverSSH.Close()
+			listenerHTTPSOverSSH, _ = generateListener(config, publicKeyAuthMethod, publicKey)
+			continue
+		} else if err != nil {
 			log.Info().Err(err).Msg("Failed to accept connection over HTTPS")
 			continue
 		}
 		go func() {
-			log.Info().Msg("Succeded to accept connection over HTTPS")
+			log.Info().Msg("Succeeded to accept connection over HTTPS")
 			// Open a (local) connection to proxiedEndpointHTTPS whose content will be forwarded to serverEndpoint
 			local, err := net.Dial("tcp", proxiedEndpointHTTPS.String())
 			if err != nil {
 				log.Fatal().Err(err).Msg("Dialing into local proxy for HTTPS failed")
 			}
 			if el := log.Debug(); el.Enabled() {
-				el.Msg("Dialing into local proxy for HTTPS succeded")
+				el.Msg("Dialing into local proxy for HTTPS succeeded")
 			}
 			handleClient(client, local)
 		}()
