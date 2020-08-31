@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// completionCmd represents the completion command
 var logoutCmd = &cobra.Command{
 	Use:   "logout",
 	Short: "Logout from your account",
@@ -25,5 +24,5 @@ var logoutCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(logoutCmd)
+	accountCmd.AddCommand(logoutCmd)
 }

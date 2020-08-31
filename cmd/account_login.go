@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// completionCmd represents the completion command
 var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Log in to use your account",
@@ -36,5 +35,5 @@ var loginCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(loginCmd)
+	accountCmd.AddCommand(loginCmd)
 }
