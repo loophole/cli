@@ -183,7 +183,7 @@ func loadingFailure(loader *spinner.Spinner) {
 
 func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, publicKey *ssh.PublicKey) (net.Listener, *lm.Endpoint) {
 
-	loader := spinner.New(spinner.CharSets[9], 100*time.Millisecond, spinner.WithWriter(os.Stderr))
+	loader := spinner.New(spinner.CharSets[9], 100*time.Millisecond, spinner.WithWriter(colorable.NewColorableStdout()))
 
 	localEndpoint := lm.Endpoint{
 		Host: config.Host,
@@ -240,7 +240,7 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 
 	if el := log.Debug(); el.Enabled() {
 		fmt.Println()
-		el.Msg("Dialing gatway to estabilish the tunnel..")
+		el.Msg("Dialing gateway to establish the tunnel..")
 	}
 	serverSSHConnHTTPS, err := ssh.Dial("tcp", config.GatewayEndpoint.String(), sshConfigHTTPS)
 	if err != nil {
@@ -336,8 +336,8 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("%s:%d", config.Host, config.Port)))
 	fmt.Println()
 	fmt.Println()
-	emoji.Println(fmt.Sprintf(":nerd: %s", aurora.Italic("TLS Certificate will be obtained with first request to the above address, therefore first execution may be slower")))
-	emoji.Println(":newspaper: Logs:")
+	fmt.Fprint(colorableOutput, emoji.Sprint(fmt.Sprintf(":nerd: %s", aurora.Italic("TLS Certificate will be obtained with first request to the above address, therefore first execution may be slower\n"))))
+	fmt.Fprint(colorableOutput, emoji.Sprint(":newspaper: Logs:\n"))
 
 	log.Info().Msg("Awaiting connections...")
 	return listenerHTTPSOverSSH, proxiedEndpointHTTPS
