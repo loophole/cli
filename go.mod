@@ -7,6 +7,7 @@ require (
 	github.com/go-acme/lego/v3 v3.7.0
 	github.com/kyokomi/emoji v2.2.4+incompatible
 	github.com/logrusorgru/aurora v0.0.0-20200102142835-e9ef32dff381
+	github.com/mattn/go-colorable v0.1.2
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/rs/zerolog v1.19.0
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
