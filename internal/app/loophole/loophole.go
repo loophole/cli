@@ -180,8 +180,6 @@ func loadingSuccess(loader *spinner.Spinner) {
 	if el := log.Debug(); !el.Enabled() {
 		loader.FinalMSG = emoji.Sprintf("%s%s\n", loader.Prefix, aurora.Green(":check_mark:"))
 		loader.Stop()
-	} else {
-		fmt.Println(emoji.Sprint(loader.Prefix))
 	}
 }
 
@@ -189,8 +187,6 @@ func loadingFailure(loader *spinner.Spinner) {
 	if el := log.Debug(); !el.Enabled() {
 		loader.FinalMSG = emoji.Sprintf("%s%s\n", loader.Prefix, aurora.Red(":cross_mark:"))
 		loader.Stop()
-	} else {
-		fmt.Fprintln(colorableOutput, emoji.Sprint(loader.Prefix))
 	}
 }
 
