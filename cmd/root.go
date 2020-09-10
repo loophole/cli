@@ -1,11 +1,17 @@
 package cmd
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	stdlog "log"
 	"os"
+	"regexp"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/loophole/cli/internal/app/loophole"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
@@ -66,7 +72,69 @@ func init() {
 }
 
 func initLogger() {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: colorable.NewColorableStderr()})
+	logLocation := "logs/" + time.Now().Format("2006-01-02--15-04-05") + ".log" //path to where the current log file will be saved at, named after the timestamp of its creation for now
+
+	var err error
+
+	if _, err := os.Stat("logs"); err != nil { //does the logs folder exist? If not, create it
+		os.Mkdir("logs", 0700)
+	}
+
+	r, w, err := os.Pipe() //create a pipe that leads everything written into the writer back into the reader
+	if err != nil {
+		stdlog.Fatalf("Error creating pipe:" + err.Error())
+	}
+
+	go func(r *os.File) {
+		var logMutex sync.Mutex //Mutex to prevent simultaneous read and write access to the log string
+
+		buf := new(bytes.Buffer) //Buffer that will hold the unedited logs
+		logstring := ""          //the log string that will be written into a file
+
+		go func(buf *bytes.Buffer, r *os.File) { //Continuously read all logs into the Buffer
+			for {
+				time.Sleep(500 * time.Millisecond)
+				_, err = io.Copy(buf, r)
+				if err != nil {
+					stdlog.Fatalf("Error creating log buffer: %v", err)
+				}
+			}
+		}(buf, r)
+
+		go func(logstring *string, logMutex *sync.Mutex) { //Continuously save an ANSI stripped version of those logs into a string
+			for {
+				time.Sleep(500 * time.Millisecond)
+				exp := regexp.MustCompile("\\[\\d+m")
+				exp2 := regexp.MustCompile("")
+				logMutex.Lock()
+				*logstring = exp2.ReplaceAllString((exp.ReplaceAllString(buf.String(), "")), "") //remove all occurrences of both regexes from the logs
+				logMutex.Unlock()
+			}
+		}(&logstring, &logMutex)
+
+		go func(logstring *string, logMutex *sync.Mutex) { //Continuously save that string into a file
+			for {
+				var logFile []byte //declaring the variable that will hold the data of the currently existing log file
+				time.Sleep(500 * time.Millisecond)
+
+				if _, err := os.Stat(logLocation); err == nil {
+					logFile, _ = ioutil.ReadFile(logLocation)
+				}
+				logMutex.Lock()
+				if !bytes.Equal([]byte(*logstring), logFile) { //check if there is something new to write to the logfile
+
+					err := ioutil.WriteFile(logLocation, []byte(*logstring), 0777)
+					if err != nil {
+						fmt.Println(err)
+					}
+				}
+				logMutex.Unlock()
+			}
+		}(&logstring, &logMutex)
+	}(r)
+
+	wrt := io.MultiWriter(colorable.NewColorableStderr(), w) // create a multiwriter that writes all it receives into both the ColorableStderr as well as the writer of the pipe
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: wrt}) // set the multiwriter to be the output of our logs
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	if verbose {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
