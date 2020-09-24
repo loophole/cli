@@ -21,6 +21,7 @@ import (
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/cache"
 	"github.com/loophole/cli/internal/pkg/token"
+	"github.com/mattn/go-colorable"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/crypto/ssh"
@@ -37,6 +38,8 @@ var remoteEndpoint = lm.Endpoint{
 	Port: 80,
 }
 
+var colorableOutput = colorable.NewColorableStdout()
+
 func parsePublicKey(file string) (ssh.AuthMethod, ssh.PublicKey, error) {
 	key, err := ioutil.ReadFile(file)
 
@@ -49,7 +52,7 @@ func parsePublicKey(file string) (ssh.AuthMethod, ssh.PublicKey, error) {
 
 	if err != nil {
 		if errors.As(err, &passwordError) {
-			fmt.Print("Enter SSH password:")
+			fmt.Fprint(colorableOutput, "Enter SSH password:")
 			password, _ := terminal.ReadPassword(int(os.Stdin.Fd()))
 			signer, err = ssh.ParsePrivateKeyWithPassphrase(key, []byte(password))
 			if err != nil {
@@ -157,8 +160,8 @@ func registerSite(apiURL string, publicKey ssh.PublicKey, siteID string) (string
 }
 
 func printWelcomeMessage() {
-	fmt.Print(aurora.Cyan("Loophole"))
-	fmt.Print(aurora.Italic(" - End to end TLS encrypted TCP communication between you and your clients"))
+	fmt.Fprint(colorableOutput, aurora.Cyan("Loophole"))
+	fmt.Fprint(colorableOutput, aurora.Italic(" - End to end TLS encrypted TCP communication between you and your clients"))
 	fmt.Println()
 	fmt.Println()
 }
@@ -180,7 +183,7 @@ func loadingFailure(loader *spinner.Spinner) {
 
 func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, publicKey *ssh.PublicKey) (net.Listener, *lm.Endpoint) {
 
-	loader := spinner.New(spinner.CharSets[9], 100*time.Millisecond, spinner.WithWriter(os.Stderr))
+	loader := spinner.New(spinner.CharSets[9], 100*time.Millisecond, spinner.WithWriter(colorable.NewColorableStdout()))
 
 	localEndpoint := lm.Endpoint{
 		Host: config.Host,
@@ -237,7 +240,7 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 
 	if el := log.Debug(); el.Enabled() {
 		fmt.Println()
-		el.Msg("Dialing gatway to estabilish the tunnel..")
+		el.Msg("Dialing gateway to establish the tunnel..")
 	}
 	serverSSHConnHTTPS, err := ssh.Dial("tcp", config.GatewayEndpoint.String(), sshConfigHTTPS)
 	if err != nil {
@@ -322,19 +325,19 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 	}
 
 	fmt.Println()
-	fmt.Print("Forwarding ")
-	fmt.Print(aurora.Green(fmt.Sprintf("http://%s.loophole.site", siteID)))
-	fmt.Print(" -> ")
-	fmt.Print(aurora.Green(fmt.Sprintf("%s:%d", config.Host, config.Port)))
+	fmt.Fprint(colorableOutput, "Forwarding ")
+	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("http://%s.loophole.site", siteID)))
+	fmt.Fprint(colorableOutput, " -> ")
+	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("%s:%d", config.Host, config.Port)))
 	fmt.Println()
-	fmt.Print("Forwarding ")
-	fmt.Print(aurora.Green(fmt.Sprintf("https://%s.loophole.site", siteID)))
-	fmt.Print(" -> ")
-	fmt.Print(aurora.Green(fmt.Sprintf("%s:%d", config.Host, config.Port)))
+	fmt.Fprint(colorableOutput, "Forwarding ")
+	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("https://%s.loophole.site", siteID)))
+	fmt.Fprint(colorableOutput, " -> ")
+	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("%s:%d", config.Host, config.Port)))
 	fmt.Println()
 	fmt.Println()
-	emoji.Println(fmt.Sprintf(":nerd: %s", aurora.Italic("TLS Certificate will be obtained with first request to the above address, therefore first execution may be slower")))
-	emoji.Println(":newspaper: Logs:")
+	fmt.Fprint(colorableOutput, emoji.Sprint(fmt.Sprintf(":nerd: %s", aurora.Italic("TLS Certificate will be obtained with first request to the above address, therefore first execution may be slower\n"))))
+	fmt.Fprint(colorableOutput, emoji.Sprint(":newspaper: Logs:\n"))
 
 	log.Info().Msg("Awaiting connections...")
 	return listenerHTTPSOverSSH, proxiedEndpointHTTPS
