@@ -54,6 +54,7 @@ func parsePublicKey(file string) (ssh.AuthMethod, ssh.PublicKey, error) {
 		if errors.As(err, &passwordError) {
 			fmt.Fprint(colorableOutput, "Enter SSH password:")
 			password, _ := terminal.ReadPassword(int(os.Stdin.Fd()))
+			fmt.Println()
 			signer, err = ssh.ParsePrivateKeyWithPassphrase(key, []byte(password))
 			if err != nil {
 				return nil, nil, err
@@ -167,18 +168,26 @@ func printWelcomeMessage() {
 }
 
 func startLoading(loader *spinner.Spinner, message string) {
-	loader.Prefix = emoji.Sprintf("%s ", message)
-	loader.Start()
+	if el := log.Debug(); !el.Enabled() {
+		loader.Prefix = emoji.Sprintf("%s ", message)
+		loader.Start()
+	} else {
+		fmt.Println(emoji.Sprint(message))
+	}
 }
 
 func loadingSuccess(loader *spinner.Spinner) {
-	loader.FinalMSG = emoji.Sprintf("%s%s\n", loader.Prefix, aurora.Green(":check_mark:"))
-	loader.Stop()
+	if el := log.Debug(); !el.Enabled() {
+		loader.FinalMSG = emoji.Sprintf("%s%s\n", loader.Prefix, aurora.Green(":check_mark:"))
+		loader.Stop()
+	}
 }
 
 func loadingFailure(loader *spinner.Spinner) {
-	loader.FinalMSG = emoji.Sprintf("%s%s\n", loader.Prefix, aurora.Red(":cross_mark:"))
-	loader.Stop()
+	if el := log.Debug(); !el.Enabled() {
+		loader.FinalMSG = emoji.Sprintf("%s%s\n", loader.Prefix, aurora.Red(":cross_mark:"))
+		loader.Stop()
+	}
 }
 
 func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, publicKey *ssh.PublicKey) (net.Listener, *lm.Endpoint) {
