@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	deviceCodeURL = "https://owlsome.eu.auth0.com/oauth/device/code"
-	tokenURL      = "https://owlsome.eu.auth0.com/oauth/token"
-	clientID      = "R569dcCOUErjw1xVZOzqc7OUCiGTYNqN"
+	deviceCodeURL = "https://loophole.eu.auth0.com/oauth/device/code"
+	tokenURL      = "https://loophole.eu.auth0.com/oauth/token"
+	clientID      = "9ocnSAnfJSb6C52waL8xcPidCkRhUwBs"
 	scope         = "openid offline_access"
 	audience      = "https://api.loophole.cloud"
 )

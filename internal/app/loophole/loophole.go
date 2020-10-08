@@ -1,9 +1,6 @@
 package loophole
 
 import (
-	"bytes"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -20,6 +17,7 @@ import (
 	"github.com/logrusorgru/aurora"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/cache"
+	"github.com/loophole/cli/internal/pkg/client"
 	"github.com/loophole/cli/internal/pkg/token"
 	"github.com/mattn/go-colorable"
 	"github.com/rs/zerolog/log"
@@ -99,67 +97,6 @@ func handleClient(client net.Conn, remote net.Conn) {
 	<-chDone
 }
 
-func registerSite(apiURL string, publicKey ssh.PublicKey, siteID string) (string, error) {
-	publicKeyString := publicKey.Type() + " " + base64.StdEncoding.EncodeToString(publicKey.Marshal())
-
-	if !token.IsTokenSaved() {
-		return "", fmt.Errorf("Please log in before using Loophole")
-	}
-
-	accessToken, err := token.GetAccessToken()
-	if err != nil {
-		return "", fmt.Errorf("There was a problem reading token")
-	}
-
-	data := map[string]string{
-		"key": publicKeyString,
-	}
-	if siteID != "" {
-		data["id"] = siteID
-	}
-
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return "", fmt.Errorf("There was a problem encoding request body")
-	}
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/site", apiURL), bytes.NewBuffer(jsonData))
-	if err != nil {
-		return "", fmt.Errorf("There was a problem creating request body")
-	}
-
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", accessToken))
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-
-	if resp.StatusCode != 200 {
-		defer resp.Body.Close()
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return "", fmt.Errorf("Site registration request ended with %d status and no message", resp.StatusCode)
-		}
-		return "", fmt.Errorf("Site registration request ended with %d status and message: %s", resp.StatusCode, string(body))
-	}
-
-	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
-
-	if el := log.Debug(); el.Enabled() {
-		fmt.Println()
-		el.Interface("result", result).Msg("Response")
-	}
-	defer resp.Body.Close()
-
-	siteID, ok := result["id"].(string)
-	if !ok {
-		return "", fmt.Errorf("Error converting siteId to string")
-	}
-	return siteID, nil
-}
-
 func printWelcomeMessage() {
 	fmt.Fprint(colorableOutput, aurora.Cyan("Loophole"))
 	fmt.Fprint(colorableOutput, aurora.Italic(" - End to end TLS encrypted TCP communication between you and your clients"))
@@ -217,29 +154,37 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 		fmt.Println()
 		el.Msg("Registering site")
 	}
-	siteID, err := registerSite(apiURL, *publicKey, config.SiteID)
+	siteSpecs, err := client.RegisterSite(apiURL, *publicKey, config.SiteID)
 	if err != nil {
-		if el := log.Debug(); el.Enabled() {
-			fmt.Println()
-			el.Err(err).Msg("Failed to register site")
-		}
-		if el := log.Debug(); el.Enabled() {
-			el.Msg("Trying to refresh token")
-		}
-		if err := token.RefreshToken(); err != nil {
-			loadingFailure(loader)
-			log.Fatal().Err(err).Msg("Failed to refresh token")
-		}
-		siteID, err = registerSite(apiURL, *publicKey, config.SiteID)
-		if err != nil {
-			loadingFailure(loader)
-			log.Fatal().Err(err).Msg("Failed to register site")
+		if siteSpecs.ResultCode == 401 {
+			if el := log.Debug(); el.Enabled() {
+				fmt.Println()
+				el.Err(err).Msg("Failed to register site")
+			}
+			if el := log.Debug(); el.Enabled() {
+				el.Msg("Trying to refresh token")
+			}
+			if err := token.RefreshToken(); err != nil {
+				loadingFailure(loader)
+				log.Fatal().Err(err).Msg("Failed to refresh token, try logging in again")
+			}
+			siteSpecs, err = client.RegisterSite(apiURL, *publicKey, config.SiteID)
+			if err != nil {
+				loadingFailure(loader)
+				log.Fatal().Err(err).Msg("Failed to register site, try logging in again")
+			}
+		} else if siteSpecs.ResultCode == 403 {
+			log.Fatal().Err(err).Msg("You don't have required permissions to establish tunnel with given parameters")
+		} else if siteSpecs.ResultCode == 600 || siteSpecs.ResultCode == 601 {
+			log.Fatal().Err(err).Msg("Looks like you're not logged in")
+		} else {
+			log.Fatal().Err(err).Msg("Something unexpected happened, please let developers know")
 		}
 	}
 	loadingSuccess(loader)
 
 	sshConfigHTTPS := &ssh.ClientConfig{
-		User: fmt.Sprintf("%s_https", siteID),
+		User: fmt.Sprintf("%s_https", siteSpecs.SiteID),
 		Auth: []ssh.AuthMethod{
 			*publicKeyAuthMethod,
 		},
@@ -266,9 +211,9 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 
 	certManager := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
-		HostPolicy: autocert.HostWhitelist(fmt.Sprintf("%s.loophole.site", siteID), "abc.loophole.site"), //Your domain here
-		Cache:      autocert.DirCache(cache.GetLocalStorageDir("certs")),                                 //Folder for storing certificates
-		Email:      fmt.Sprintf("%s@loophole.main.dev", siteID),
+		HostPolicy: autocert.HostWhitelist(fmt.Sprintf("%s.loophole.site", siteSpecs.SiteID), "abc.loophole.site"), //Your domain here
+		Cache:      autocert.DirCache(cache.GetLocalStorageDir("certs")),                                           //Folder for storing certificates
+		Email:      fmt.Sprintf("%s@loophole.main.dev", siteSpecs.SiteID),
 	}
 	if el := log.Debug(); el.Enabled() {
 		fmt.Println()
@@ -335,12 +280,12 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 
 	fmt.Println()
 	fmt.Fprint(colorableOutput, "Forwarding ")
-	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("http://%s.loophole.site", siteID)))
+	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("http://%s.loophole.site", siteSpecs.SiteID)))
 	fmt.Fprint(colorableOutput, " -> ")
 	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("%s:%d", config.Host, config.Port)))
 	fmt.Println()
 	fmt.Fprint(colorableOutput, "Forwarding ")
-	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("https://%s.loophole.site", siteID)))
+	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("https://%s.loophole.site", siteSpecs.SiteID)))
 	fmt.Fprint(colorableOutput, " -> ")
 	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("%s:%d", config.Host, config.Port)))
 	fmt.Println()
