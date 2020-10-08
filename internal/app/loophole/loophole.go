@@ -108,7 +108,7 @@ func startLoading(loader *spinner.Spinner, message string) {
 		loader.Prefix = fmt.Sprintf("%s ", message)
 		loader.Start()
 	} else {
-		fmt.Println(fmt.Sprint(message))
+		fmt.Println(message)
 	}
 }
 
@@ -289,7 +289,7 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("%s:%d", config.Host, config.Port)))
 	fmt.Println()
 	fmt.Println()
-	fmt.Fprint(colorableOutput, fmt.Sprint(fmt.Sprintf("%s", aurora.Italic("TLS Certificate will be obtained with first request to the above address, therefore first execution may be slower\n"))))
+	fmt.Fprint(colorableOutput, fmt.Sprintf("%s", aurora.Italic("TLS Certificate will be obtained with first request to the above address, therefore first execution may be slower\n")))
 	fmt.Fprint(colorableOutput, fmt.Sprint("Logs:\n"))
 
 	log.Info().Msg("Awaiting connections...")
