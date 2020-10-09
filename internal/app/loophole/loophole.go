@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
-	"github.com/kyokomi/emoji"
 	"github.com/logrusorgru/aurora"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/cache"
@@ -106,23 +105,23 @@ func printWelcomeMessage() {
 
 func startLoading(loader *spinner.Spinner, message string) {
 	if el := log.Debug(); !el.Enabled() {
-		loader.Prefix = emoji.Sprintf("%s ", message)
+		loader.Prefix = fmt.Sprintf("%s ", message)
 		loader.Start()
 	} else {
-		fmt.Println(emoji.Sprint(message))
+		fmt.Println(message)
 	}
 }
 
 func loadingSuccess(loader *spinner.Spinner) {
 	if el := log.Debug(); !el.Enabled() {
-		loader.FinalMSG = emoji.Sprintf("%s%s\n", loader.Prefix, aurora.Green(":check_mark:"))
+		loader.FinalMSG = fmt.Sprintf("%s%s\n", loader.Prefix, aurora.Green("Success!"))
 		loader.Stop()
 	}
 }
 
 func loadingFailure(loader *spinner.Spinner) {
 	if el := log.Debug(); !el.Enabled() {
-		loader.FinalMSG = emoji.Sprintf("%s%s\n", loader.Prefix, aurora.Red(":cross_mark:"))
+		loader.FinalMSG = fmt.Sprintf("%s%s\n", loader.Prefix, aurora.Red("Error!"))
 		loader.Stop()
 	}
 }
@@ -148,7 +147,7 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 		}
 	}
 
-	startLoading(loader, ":wave: Registering your domain...")
+	startLoading(loader, "Registering your domain...")
 
 	if el := log.Debug(); el.Enabled() {
 		fmt.Println()
@@ -190,7 +189,7 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
-	startLoading(loader, ":lock: Initializing secure tunnel... ")
+	startLoading(loader, "Initializing secure tunnel... ")
 
 	if el := log.Debug(); el.Enabled() {
 		fmt.Println()
@@ -207,7 +206,7 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 	}
 	loadingSuccess(loader)
 
-	startLoading(loader, ":key: Obtaining TLS certificate provider... ")
+	startLoading(loader, "Obtaining TLS certificate provider... ")
 
 	certManager := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
@@ -235,7 +234,7 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 	}
 	loadingSuccess(loader)
 
-	startLoading(loader, ":cloud:  Starting the server... ")
+	startLoading(loader, "Starting the server... ")
 
 	if el := log.Debug(); el.Enabled() {
 		fmt.Println()
@@ -290,8 +289,8 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("%s:%d", config.Host, config.Port)))
 	fmt.Println()
 	fmt.Println()
-	fmt.Fprint(colorableOutput, emoji.Sprint(fmt.Sprintf(":nerd: %s", aurora.Italic("TLS Certificate will be obtained with first request to the above address, therefore first execution may be slower\n"))))
-	fmt.Fprint(colorableOutput, emoji.Sprint(":newspaper: Logs:\n"))
+	fmt.Fprint(colorableOutput, fmt.Sprintf("%s", aurora.Italic("TLS Certificate will be obtained with first request to the above address, therefore first execution may be slower\n")))
+	fmt.Fprint(colorableOutput, fmt.Sprint("Logs:\n"))
 
 	log.Info().Msg("Awaiting connections...")
 	return listenerHTTPSOverSSH, proxiedEndpointHTTPS
