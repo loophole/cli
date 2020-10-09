@@ -13,7 +13,7 @@ Head over to [the releases page](https://github.com/loophole/cli/releases/latest
 First create an account by executing
 
 ```
-$ loophole login
+$ loophole account login
 ```
 
 and following the instructions there, then execute
