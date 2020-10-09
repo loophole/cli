@@ -127,7 +127,7 @@ func loadingFailure(loader *spinner.Spinner) {
 	}
 }
 
-func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, publicKey *ssh.PublicKey) (net.Listener, *lm.Endpoint) {
+func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, publicKey *ssh.PublicKey, siteSpecs client.SiteSpecification) (net.Listener, *lm.Endpoint, client.SiteSpecification) {
 
 	loader := spinner.New(spinner.CharSets[9], 100*time.Millisecond, spinner.WithWriter(colorable.NewColorableStdout()))
 
@@ -154,31 +154,36 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 		fmt.Println()
 		el.Msg("Registering site")
 	}
-	siteSpecs, err := client.RegisterSite(apiURL, *publicKey, config.SiteID)
-	if err != nil {
-		if siteSpecs.ResultCode == 401 {
-			if el := log.Debug(); el.Enabled() {
-				fmt.Println()
-				el.Err(err).Msg("Failed to register site")
+
+	if siteSpecs.ResultCode != 0 { //checking whether siteSpecshas been used yet
+		log.Info().Msg("Trying to reuse old hostname...")
+	} else {
+		siteSpecs, err = client.RegisterSite(apiURL, *publicKey, config.SiteID)
+		if err != nil {
+			if siteSpecs.ResultCode == 401 {
+				if el := log.Debug(); el.Enabled() {
+					fmt.Println()
+					el.Err(err).Msg("Failed to register site")
+				}
+				if el := log.Debug(); el.Enabled() {
+					el.Msg("Trying to refresh token")
+				}
+				if err := token.RefreshToken(); err != nil {
+					loadingFailure(loader)
+					log.Fatal().Err(err).Msg("Failed to refresh token, try logging in again")
+				}
+				siteSpecs, err = client.RegisterSite(apiURL, *publicKey, config.SiteID)
+				if err != nil {
+					loadingFailure(loader)
+					log.Fatal().Err(err).Msg("Failed to register site, try logging in again")
+				}
+			} else if siteSpecs.ResultCode == 403 {
+				log.Fatal().Err(err).Msg("You don't have required permissions to establish tunnel with given parameters")
+			} else if siteSpecs.ResultCode == 600 || siteSpecs.ResultCode == 601 {
+				log.Fatal().Err(err).Msg("Looks like you're not logged in")
+			} else {
+				log.Fatal().Err(err).Msg("Something unexpected happened, please let developers know")
 			}
-			if el := log.Debug(); el.Enabled() {
-				el.Msg("Trying to refresh token")
-			}
-			if err := token.RefreshToken(); err != nil {
-				loadingFailure(loader)
-				log.Fatal().Err(err).Msg("Failed to refresh token, try logging in again")
-			}
-			siteSpecs, err = client.RegisterSite(apiURL, *publicKey, config.SiteID)
-			if err != nil {
-				loadingFailure(loader)
-				log.Fatal().Err(err).Msg("Failed to register site, try logging in again")
-			}
-		} else if siteSpecs.ResultCode == 403 {
-			log.Fatal().Err(err).Msg("You don't have required permissions to establish tunnel with given parameters")
-		} else if siteSpecs.ResultCode == 600 || siteSpecs.ResultCode == 601 {
-			log.Fatal().Err(err).Msg("Looks like you're not logged in")
-		} else {
-			log.Fatal().Err(err).Msg("Something unexpected happened, please let developers know")
 		}
 	}
 	loadingSuccess(loader)
@@ -199,7 +204,8 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 	serverSSHConnHTTPS, err := ssh.Dial("tcp", config.GatewayEndpoint.String(), sshConfigHTTPS)
 	if err != nil {
 		loadingFailure(loader)
-		log.Fatal().Err(err).Msg("Dialing SSH Gateway for HTTPS failed")
+		fmt.Fprintln(colorableOutput, aurora.BgRed("An error occured while dialing into SSH. If your connection has been running for a while, this might be caused by the server shutting down your connection."))
+		log.Fatal().Err(err).Msg("Dialing SSH Gateway for HTTPS failed.")
 	}
 	if el := log.Debug(); el.Enabled() {
 		fmt.Println()
@@ -294,7 +300,7 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 	fmt.Fprint(colorableOutput, emoji.Sprint(":newspaper: Logs:\n"))
 
 	log.Info().Msg("Awaiting connections...")
-	return listenerHTTPSOverSSH, proxiedEndpointHTTPS
+	return listenerHTTPSOverSSH, proxiedEndpointHTTPS, siteSpecs
 }
 
 // Start starts the tunnel on specified host and port
@@ -303,8 +309,9 @@ func Start(config lm.Config) {
 
 	var publicKeyAuthMethod *ssh.AuthMethod = new(ssh.AuthMethod)
 	var publicKey *ssh.PublicKey = new(ssh.PublicKey)
+	var siteSpecs client.SiteSpecification
 
-	listenerHTTPSOverSSH, proxiedEndpointHTTPS := generateListener(config, publicKeyAuthMethod, publicKey)
+	listenerHTTPSOverSSH, proxiedEndpointHTTPS, siteSpecs := generateListener(config, publicKeyAuthMethod, publicKey, siteSpecs)
 	defer listenerHTTPSOverSSH.Close()
 
 	for {
@@ -312,7 +319,7 @@ func Start(config lm.Config) {
 		if err == io.EOF {
 			log.Info().Err(err).Msg("Connection dropped, reconnecting...")
 			listenerHTTPSOverSSH.Close()
-			listenerHTTPSOverSSH, _ = generateListener(config, publicKeyAuthMethod, publicKey)
+			listenerHTTPSOverSSH, _, _ = generateListener(config, publicKeyAuthMethod, publicKey, siteSpecs)
 			continue
 		} else if err != nil {
 			log.Info().Err(err).Msg("Failed to accept connection over HTTPS")
