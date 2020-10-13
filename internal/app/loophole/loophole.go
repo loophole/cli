@@ -19,6 +19,7 @@ import (
 	"github.com/loophole/cli/internal/pkg/client"
 	"github.com/loophole/cli/internal/pkg/token"
 	"github.com/mattn/go-colorable"
+	"github.com/mdp/qrterminal"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/crypto/ssh"
@@ -294,7 +295,14 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 	fmt.Fprint(colorableOutput, " -> ")
 	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("%s:%d", config.Host, config.Port)))
 	fmt.Println()
-	fmt.Println()
+	QRconfig := qrterminal.Config{
+		Level:     qrterminal.M,
+		Writer:    colorableOutput,
+		BlackChar: qrterminal.WHITE,
+		WhiteChar: qrterminal.BLACK,
+		QuietZone: 1,
+	}
+	qrterminal.GenerateWithConfig(fmt.Sprintf("http://%s.loophole.site", siteSpecs.SiteID), QRconfig)
 	fmt.Fprint(colorableOutput, fmt.Sprintf("%s", aurora.Italic("TLS Certificate will be obtained with first request to the above address, therefore first execution may be slower\n")))
 	fmt.Println()
 	fmt.Fprint(colorableOutput, fmt.Sprintf("%s", aurora.Cyan("Press CTRL + C to stop the service\n")))
