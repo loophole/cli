@@ -296,6 +296,9 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 	fmt.Println()
 	fmt.Println()
 	fmt.Fprint(colorableOutput, fmt.Sprintf("%s", aurora.Italic("TLS Certificate will be obtained with first request to the above address, therefore first execution may be slower\n")))
+	fmt.Println()
+	fmt.Fprint(colorableOutput, fmt.Sprintf("%s", aurora.Cyan("Press CTRL + C to stop the service\n")))
+	fmt.Println()
 	fmt.Fprint(colorableOutput, fmt.Sprint("Logs:\n"))
 
 	log.Info().Msg("Awaiting connections...")
