@@ -65,6 +65,7 @@ func init() {
 	rootCmd.Flags().StringVar(&config.SiteID, "hostname", "", "custom hostname you want to run service on")
 	// rootCmd.Flags().BoolVar(&config.HTTPS, "https", false, "use if your local service is already using HTTPS")
 	config.HTTPS = false
+	rootCmd.Flags().BoolVar(&config.QR, "qr", false, "use if you want a QR version of your url to be shown")
 
 }
 
