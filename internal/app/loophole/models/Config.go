@@ -9,4 +9,5 @@ type Config struct {
 	SiteID          string
 	LogLevel        string
 	HTTPS           bool
+	QR              bool
 }
