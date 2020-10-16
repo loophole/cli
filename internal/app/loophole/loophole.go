@@ -179,6 +179,8 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 				}
 			} else if siteSpecs.ResultCode == 403 {
 				log.Fatal().Err(err).Msg("You don't have required permissions to establish tunnel with given parameters")
+			} else if siteSpecs.ResultCode == 409 {
+				log.Fatal().Err(err).Msg("The given hostname is already taken by different used")
 			} else if siteSpecs.ResultCode == 600 || siteSpecs.ResultCode == 601 {
 				log.Fatal().Err(err).Msg("Looks like you're not logged in")
 			} else {
