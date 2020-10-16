@@ -40,7 +40,7 @@ func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID string) (SiteSp
 	if err != nil {
 		return SiteSpecification{"", 0}, fmt.Errorf("There was a problem encoding request body")
 	}
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/site", apiURL), bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/register-site", apiURL), bytes.NewBuffer(jsonData))
 	if err != nil {
 		return SiteSpecification{"", 0}, fmt.Errorf("There was a problem creating request")
 	}
