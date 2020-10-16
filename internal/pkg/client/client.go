@@ -53,7 +53,7 @@ func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID string) (SiteSp
 		return SiteSpecification{"", 0}, err
 	}
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != 200 && resp.StatusCode != 201 {
 		return SiteSpecification{"", resp.StatusCode}, fmt.Errorf("Site registration request ended with %d status", resp.StatusCode)
 	}
 
