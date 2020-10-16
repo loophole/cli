@@ -160,7 +160,14 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 	} else {
 		siteSpecs, err = client.RegisterSite(apiURL, *publicKey, config.SiteID)
 		if err != nil {
-			if siteSpecs.ResultCode == 401 {
+			if siteSpecs.ResultCode == 400 {
+				loadingFailure(loader)
+				log.Error().Err(err).Msg("The given hostname didn't match the requirements:")
+				log.Error().Msg("- Starts with a letter")
+				log.Error().Msg("- Contains only small letters and numbers")
+				log.Error().Msg("- Minimum 6 characters (not applicable for premium users)")
+				log.Fatal().Msg("Please fix the issue and try again")
+			} else if siteSpecs.ResultCode == 401 {
 				if el := log.Debug(); el.Enabled() {
 					fmt.Println()
 					el.Err(err).Msg("Failed to register site")
