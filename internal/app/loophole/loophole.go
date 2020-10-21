@@ -185,12 +185,16 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 					log.Fatal().Err(err).Msg("Failed to register site, try logging in again")
 				}
 			} else if siteSpecs.ResultCode == 403 {
+				loadingFailure(loader)
 				log.Fatal().Err(err).Msg("You don't have required permissions to establish tunnel with given parameters")
 			} else if siteSpecs.ResultCode == 409 {
+				loadingFailure(loader)
 				log.Fatal().Err(err).Msg("The given hostname is already taken by different used")
 			} else if siteSpecs.ResultCode == 600 || siteSpecs.ResultCode == 601 {
+				loadingFailure(loader)
 				log.Fatal().Err(err).Msg("Looks like you're not logged in")
 			} else {
+				loadingFailure(loader)
 				log.Fatal().Err(err).Msg("Something unexpected happened, please let developers know")
 			}
 		}
@@ -198,7 +202,7 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 	loadingSuccess(loader)
 
 	sshConfigHTTPS := &ssh.ClientConfig{
-		User: fmt.Sprintf("%s_https", siteSpecs.SiteID),
+		User: fmt.Sprintf(siteSpecs.SiteID),
 		Auth: []ssh.AuthMethod{
 			*publicKeyAuthMethod,
 		},

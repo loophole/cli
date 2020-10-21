@@ -17,6 +17,15 @@ type SiteSpecification struct {
 	ResultCode int
 }
 
+type SuccessResponse struct {
+	SiteId string `json:"siteId"`
+}
+type ErrorResponse struct {
+	StatusCode string `json:"statusCode"`
+	Message    string `json:"message"`
+	Error      string `json:"error"`
+}
+
 func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID string) (SiteSpecification, error) {
 	publicKeyString := publicKey.Type() + " " + base64.StdEncoding.EncodeToString(publicKey.Marshal())
 
@@ -52,23 +61,22 @@ func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID string) (SiteSp
 	if err != nil {
 		return SiteSpecification{"", 0}, err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		return SiteSpecification{"", resp.StatusCode}, fmt.Errorf("Site registration request ended with %d status", resp.StatusCode)
+		errorResponse := ErrorResponse{}
+		json.NewDecoder(resp.Body).Decode(&errorResponse)
+
+		return SiteSpecification{"", resp.StatusCode}, fmt.Errorf("%s", errorResponse.Message)
 	}
 
-	var result map[string]interface{}
+	result := SuccessResponse{}
 	json.NewDecoder(resp.Body).Decode(&result)
 
 	if el := log.Debug(); el.Enabled() {
 		fmt.Println()
 		el.Interface("result", result).Msg("Response")
 	}
-	defer resp.Body.Close()
 
-	siteID, ok := result["siteId"].(string)
-	if !ok {
-		return SiteSpecification{"", 400}, fmt.Errorf("Error converting siteId to string")
-	}
-	return SiteSpecification{siteID, resp.StatusCode}, nil
+	return SiteSpecification{result.SiteId, resp.StatusCode}, nil
 }

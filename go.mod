@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/briandowns/spinner v1.11.1
+	github.com/coreos/etcd v3.3.10+incompatible
 	github.com/go-acme/lego/v3 v3.7.0
 	github.com/kyokomi/emoji v2.2.4+incompatible
 	github.com/logrusorgru/aurora v0.0.0-20200102142835-e9ef32dff381
