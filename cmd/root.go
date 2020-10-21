@@ -46,8 +46,6 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.Version = "1.0.0"
-
 	home, err := homedir.Dir()
 	if err != nil {
 		panic(err)
@@ -60,10 +58,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&config.IdentityFile, "identity-file", "i", fmt.Sprintf("%s/.ssh/id_rsa", home), "private key path")
 	config.GatewayEndpoint.Host = "gateway.loophole.host"
 	config.GatewayEndpoint.Port = 8022
-	// rootCmd.Flags().StringVar(&config.GatewayEndpoint.Host, "gateway-url", "gateway.loophole.host", "remote gateway URL")
-	// rootCmd.Flags().Int32Var(&config.GatewayEndpoint.Port, "gateway-port", 8022, "remote gateway port")
 	rootCmd.Flags().StringVar(&config.SiteID, "hostname", "", "custom hostname you want to run service on")
-	// rootCmd.Flags().BoolVar(&config.HTTPS, "https", false, "use if your local service is already using HTTPS")
 	config.HTTPS = false
 	rootCmd.Flags().BoolVar(&config.QR, "qr", false, "use if you want a QR version of your url to be shown")
 
@@ -81,7 +76,8 @@ func initLogger() {
 }
 
 // Execute runs command parsing chain
-func Execute() {
+func Execute(version string, commit string) {
+	rootCmd.Version = fmt.Sprintf("%s (%s)", version, commit)
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

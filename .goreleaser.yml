@@ -1,32 +1,44 @@
 project_name: loophole
+
 before:
   hooks:
     - go mod download
+
 builds:
-- id: loophole
-  binary: loophole
-  goos:
-  - linux
-  - darwin
-  - windows
-  goarch:
-  - 386
-  - amd64
-  - arm
-  - arm64
+  - id: loophole
+    binary: loophole
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - 386
+      - amd64
+      - arm
+      - arm64
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}}
+
 archives:
-- replacements:
-    386: i386
-  format_overrides:
-  - goos: windows
-    format: zip
+  - replacements:
+      386: i386
+    format_overrides:
+      - goos: windows
+        format: zip
+
 checksum:
-  name_template: 'checksums.txt'
+  name_template: "checksums.txt"
+
 snapshot:
   name_template: "{{ .Tag }}-next"
+
 changelog:
   sort: asc
   filters:
     exclude:
-    - '^docs:'
-    - '^test:'
+      - "^docs:"
+      - "^test:"
+      - Merge pull request
+      - Merge branch
+      - go mod tidy
