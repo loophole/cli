@@ -299,11 +299,6 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 
 	fmt.Println()
 	fmt.Fprint(colorableOutput, "Forwarding ")
-	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("http://%s.loophole.site", siteSpecs.SiteID)))
-	fmt.Fprint(colorableOutput, " -> ")
-	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("%s:%d", config.Host, config.Port)))
-	fmt.Println()
-	fmt.Fprint(colorableOutput, "Forwarding ")
 	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("https://%s.loophole.site", siteSpecs.SiteID)))
 	fmt.Fprint(colorableOutput, " -> ")
 	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("%s:%d", config.Host, config.Port)))
