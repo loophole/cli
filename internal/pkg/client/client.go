@@ -12,28 +12,36 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// SiteSpecification is struct containing information about site registration results
 type SiteSpecification struct {
 	SiteID     string
 	ResultCode int
 }
 
+// SuccessResponse defines the json format in which the success response is returned
 type SuccessResponse struct {
-	SiteId string `json:"siteId"`
+	SiteID string `json:"siteId"`
 }
+
+// ErrorResponse defines the json format in which the error response is returned
 type ErrorResponse struct {
 	StatusCode string `json:"statusCode"`
 	Message    string `json:"message"`
 	Error      string `json:"error"`
 }
 
+var isTokenSaved = token.IsTokenSaved
+var getAccessToken = token.GetAccessToken
+
+// RegisterSite is a funtion used to obtain site id and register keys in the gateway
 func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID string) (SiteSpecification, error) {
 	publicKeyString := publicKey.Type() + " " + base64.StdEncoding.EncodeToString(publicKey.Marshal())
 
-	if !token.IsTokenSaved() {
+	if !isTokenSaved() {
 		return SiteSpecification{"", 601}, fmt.Errorf("Please log in before using Loophole")
 	}
 
-	accessToken, err := token.GetAccessToken()
+	accessToken, err := getAccessToken()
 	if err != nil {
 		return SiteSpecification{"", 600}, fmt.Errorf("There was a problem reading token")
 	}
@@ -78,5 +86,5 @@ func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID string) (SiteSp
 		el.Interface("result", result).Msg("Response")
 	}
 
-	return SiteSpecification{result.SiteId, resp.StatusCode}, nil
+	return SiteSpecification{result.SiteID, resp.StatusCode}, nil
 }

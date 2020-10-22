@@ -26,3 +26,24 @@ $ loophole 3000
 Congrats, you can now share the presented link to the world.
 
 For more information head over to [docs](https://loophole.cloud/docs/).
+
+
+## Development
+
+### Testing
+
+```
+$ go test -v ./...
+```
+
+### Running
+
+```
+# go run main.go
+```
+
+### Building
+
+```
+# go build -o loophole main.go
+```
