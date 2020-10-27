@@ -10,7 +10,6 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -217,18 +216,18 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 
 	var sshSuccess bool = false
 	var sshRetries int = 5
-	for i := 0; i < sshRetries && sshSuccess == false; i++ { //Connection retries in case of reconnect during gateway shutdown
+	for i := 0; i < sshRetries && !sshSuccess; i++ { //Connection retries in case of reconnect during gateway shutdown
 		startLoading(loader, "Initializing secure tunnel... ")
 		serverSSHConnHTTPS, err = ssh.Dial("tcp", config.GatewayEndpoint.String(), sshConfigHTTPS)
 		if err != nil {
 			loadingFailure(loader)
-			log.Info().Msg("SSH Connection failed, retrying in 10 seconds... (Attempt " + strconv.Itoa(i+1) + "/" + strconv.Itoa(sshRetries) + ")")
+			log.Info().Msg(fmt.Sprintf("SSH Connection failed, retrying in 10 seconds... (Attempt %d/%d)", i+1, sshRetries))
 			time.Sleep(10 * time.Second)
 		} else {
 			sshSuccess = true
 		}
 	}
-	if sshSuccess == false {
+	if !sshSuccess {
 		fmt.Fprintln(colorableOutput, aurora.Red("An error occured while dialing into SSH. If your connection has been running for a while, this might be caused by the server shutting down your connection."))
 		log.Fatal().Err(err).Msg("Dialing SSH Gateway for HTTPS failed.")
 	}
