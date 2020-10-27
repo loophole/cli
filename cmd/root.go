@@ -6,6 +6,7 @@ import (
 	stdlog "log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/loophole/cli/internal/app/loophole"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
@@ -65,7 +66,20 @@ func init() {
 }
 
 func initLogger() {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: colorable.NewColorableStderr()})
+	logLocation := "logs/" + time.Now().Format("2006-01-02--15-04-05") + ".log"
+
+	if _, err := os.Stat("logs"); err != nil {
+		os.Mkdir("logs", 0700)
+	}
+
+	f, err := os.Create(logLocation)
+	if err != nil {
+		stdlog.Fatalln("Error creating log file:", err)
+	}
+	consoleWriter := zerolog.ConsoleWriter{Out: colorable.NewColorableStderr()}
+	multi := zerolog.MultiLevelWriter(consoleWriter, f)
+	log.Logger = zerolog.New(multi).With().Timestamp().Logger()
+
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	if verbose {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
