@@ -39,13 +39,14 @@ var remoteEndpoint = lm.Endpoint{
 }
 
 var colorableOutput = colorable.NewColorableStdout()
+var successfulConnectionOccured bool = false
 
-func setupCloseHandler(successfulConnectionOccured *bool) {
+func setupCloseHandler() {
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
-		printFeedbackMessage(successfulConnectionOccured)
+		printFeedbackMessage()
 		os.Exit(0)
 	}()
 }
@@ -116,11 +117,11 @@ func printWelcomeMessage() {
 	fmt.Println()
 }
 
-func printFeedbackMessage(successfulConnectionOccured *bool) {
+func printFeedbackMessage() {
 	fmt.Println()
 	fmt.Println("Goodbye!")
-	if *successfulConnectionOccured {
-		fmt.Print(aurora.Cyan("Thank you for using Loophole. Please give us your feedback via ADDLINKHERE and help us improve our services. "))
+	if successfulConnectionOccured {
+		fmt.Println(aurora.Cyan("Thank you for using Loophole. Please give us your feedback via https://forms.gle/K9ga7FZB3deaffnV7 and help us improve our services."))
 	}
 }
 
@@ -148,10 +149,6 @@ func loadingFailure(loader *spinner.Spinner) {
 }
 
 func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, publicKey *ssh.PublicKey, siteSpecs client.SiteSpecification) (net.Listener, *lm.Endpoint, client.SiteSpecification) {
-	var successfulConnectionOccured *bool
-	successfulConnectionOccured = new(bool)
-	*successfulConnectionOccured = false
-	setupCloseHandler(successfulConnectionOccured)
 
 	loader := spinner.New(spinner.CharSets[9], 100*time.Millisecond, spinner.WithWriter(colorable.NewColorableStdout()))
 
@@ -349,6 +346,7 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 
 // Start starts the tunnel on specified host and port
 func Start(config lm.Config) {
+	setupCloseHandler()
 	printWelcomeMessage()
 
 	var publicKeyAuthMethod *ssh.AuthMethod = new(ssh.AuthMethod)
@@ -369,6 +367,7 @@ func Start(config lm.Config) {
 			log.Info().Err(err).Msg("Failed to accept connection over HTTPS")
 			continue
 		}
+		successfulConnectionOccured = true
 		go func() {
 			log.Info().Msg("Succeeded to accept connection over HTTPS")
 			// Open a (local) connection to proxiedEndpointHTTPS whose content will be forwarded to serverEndpoint
