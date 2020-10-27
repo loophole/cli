@@ -169,16 +169,15 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 		}
 	}
 
-	startLoading(loader, "Registering your domain...")
-
 	if el := log.Debug(); el.Enabled() {
 		fmt.Println()
 		el.Msg("Registering site")
 	}
 
-	if siteSpecs.ResultCode != 0 { //checking whether siteSpecshas been used yet
+	if siteSpecs.ResultCode != 0 { //checking whether siteSpecs has been used yet
 		log.Info().Msg("Trying to reuse old hostname...")
 	} else {
+		startLoading(loader, "Registering your domain...")
 		siteSpecs, err = client.RegisterSite(apiURL, *publicKey, config.SiteID)
 		if err != nil {
 			if siteSpecs.ResultCode == 400 {
@@ -222,6 +221,7 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 	}
 	loadingSuccess(loader)
 
+	var serverSSHConnHTTPS *ssh.Client
 	sshConfigHTTPS := &ssh.ClientConfig{
 		User: fmt.Sprintf(siteSpecs.SiteID),
 		Auth: []ssh.AuthMethod{
@@ -229,16 +229,27 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
-	startLoading(loader, "Initializing secure tunnel... ")
 
 	if el := log.Debug(); el.Enabled() {
 		fmt.Println()
 		el.Msg("Dialing gateway to establish the tunnel..")
 	}
-	serverSSHConnHTTPS, err := ssh.Dial("tcp", config.GatewayEndpoint.String(), sshConfigHTTPS)
-	if err != nil {
-		loadingFailure(loader)
-		fmt.Fprintln(colorableOutput, aurora.BgRed("An error occured while dialing into SSH. If your connection has been running for a while, this might be caused by the server shutting down your connection."))
+
+	var sshSuccess bool = false
+	var sshRetries int = 5
+	for i := 0; i < sshRetries && !sshSuccess; i++ { //Connection retries in case of reconnect during gateway shutdown
+		startLoading(loader, "Initializing secure tunnel... ")
+		serverSSHConnHTTPS, err = ssh.Dial("tcp", config.GatewayEndpoint.String(), sshConfigHTTPS)
+		if err != nil {
+			loadingFailure(loader)
+			log.Info().Msg(fmt.Sprintf("SSH Connection failed, retrying in 10 seconds... (Attempt %d/%d)", i+1, sshRetries))
+			time.Sleep(10 * time.Second)
+		} else {
+			sshSuccess = true
+		}
+	}
+	if !sshSuccess {
+		fmt.Fprintln(colorableOutput, aurora.Red("An error occured while dialing into SSH. If your connection has been running for a while, this might be caused by the server shutting down your connection."))
 		log.Fatal().Err(err).Msg("Dialing SSH Gateway for HTTPS failed.")
 	}
 	if el := log.Debug(); el.Enabled() {
