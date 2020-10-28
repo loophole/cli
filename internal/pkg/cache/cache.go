@@ -24,12 +24,12 @@ func GetLocalStorageDir(directoryName string) string {
 }
 
 // GetLocalStorageFile returns local file for loophole cache purposes
-func GetLocalStorageFile(fileName string) string {
+func GetLocalStorageFile(fileName string, directoryName string) string {
 	home, err := homedir.Dir()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error reading user home directory ")
 	}
-	dirName := path.Join(home, ".loophole")
+	dirName := path.Join(home, ".loophole", directoryName)
 	err = os.MkdirAll(dirName, os.ModePerm)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error creating local cache directory")

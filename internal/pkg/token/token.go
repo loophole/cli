@@ -46,7 +46,7 @@ type TokenSpec struct {
 }
 
 func IsTokenSaved() bool {
-	tokensLocation := cache.GetLocalStorageFile("tokens.json")
+	tokensLocation := cache.GetLocalStorageFile("tokens.json", "")
 
 	if _, err := os.Stat(tokensLocation); os.IsNotExist(err) {
 		return false
@@ -57,7 +57,7 @@ func IsTokenSaved() bool {
 }
 
 func SaveToken(token *TokenSpec) error {
-	tokensLocation := cache.GetLocalStorageFile("tokens.json")
+	tokensLocation := cache.GetLocalStorageFile("tokens.json", "")
 
 	tokenBytes, err := json.Marshal(token)
 	if err != nil {
@@ -234,7 +234,7 @@ func RefreshToken() error {
 }
 
 func DeleteTokens() error {
-	tokensLocation := cache.GetLocalStorageFile("tokens.json")
+	tokensLocation := cache.GetLocalStorageFile("tokens.json", "")
 
 	err := os.Remove(tokensLocation)
 	if err != nil {
@@ -244,7 +244,7 @@ func DeleteTokens() error {
 }
 
 func GetAccessToken() (string, error) {
-	tokensLocation := cache.GetLocalStorageFile("tokens.json")
+	tokensLocation := cache.GetLocalStorageFile("tokens.json", "")
 
 	tokens, err := ioutil.ReadFile(tokensLocation)
 	if err != nil {
@@ -259,7 +259,7 @@ func GetAccessToken() (string, error) {
 }
 
 func GetRefreshToken() (string, error) {
-	tokensLocation := cache.GetLocalStorageFile("tokens.json")
+	tokensLocation := cache.GetLocalStorageFile("tokens.json", "")
 
 	tokens, err := ioutil.ReadFile(tokensLocation)
 	if err != nil {

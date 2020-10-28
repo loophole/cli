@@ -10,6 +10,7 @@ import (
 
 	"github.com/loophole/cli/internal/app/loophole"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
+	"github.com/loophole/cli/internal/pkg/cache"
 	"github.com/mattn/go-colorable"
 	"github.com/mitchellh/go-homedir"
 	"github.com/rs/zerolog"
@@ -66,16 +67,13 @@ func init() {
 }
 
 func initLogger() {
-	logLocation := "logs/" + time.Now().Format("2006-01-02--15-04-05") + ".log"
-
-	if _, err := os.Stat("logs"); err != nil {
-		os.Mkdir("logs", 0700)
-	}
+	logLocation := cache.GetLocalStorageFile(fmt.Sprintf("%s, %s", time.Now().Format("2006-01-02--15-04-05"), ".log"), "logs")
 
 	f, err := os.Create(logLocation)
 	if err != nil {
 		stdlog.Fatalln("Error creating log file:", err)
 	}
+
 	consoleWriter := zerolog.ConsoleWriter{Out: colorable.NewColorableStderr()}
 	multi := zerolog.MultiLevelWriter(consoleWriter, f)
 	log.Logger = zerolog.New(multi).With().Timestamp().Logger()
