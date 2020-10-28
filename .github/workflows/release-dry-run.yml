@@ -1,10 +1,12 @@
-name: goreleaser build
+name: goreleaser release dry-run
 
 on:
   push:
     branches:
       - master
   pull_request:
+    branches:
+      - master
 
 jobs:
   goreleaser:
@@ -20,8 +22,17 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.14
-      -
-        name: Run GoReleaser
+      
+      - uses: actions/setup-node@v2-beta
+        with:
+          node-version: '12'
+      
+      - run: npm install
+        working-directory: ./internal/app/metrics/static/dashboard
+      - run: npm run build
+        working-directory: ./internal/app/metrics/static/dashboard
+
+      - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:
           version: latest

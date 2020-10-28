@@ -1,0 +1,64 @@
+// Core
+
+@import "dashboard/custom/functions";
+@import "dashboard/custom/variables";
+@import "dashboard/custom/mixins";
+
+// bootstrap (4.3.1) components
+
+@import "dashboard/bootstrap/root";
+@import "dashboard/bootstrap/reboot";
+@import "dashboard/bootstrap/type";
+@import "dashboard/bootstrap/images";
+@import "dashboard/bootstrap/code";
+@import "dashboard/bootstrap/grid";
+@import "dashboard/bootstrap/tables";
+@import "dashboard/bootstrap/forms";
+@import "dashboard/bootstrap/buttons";
+@import "dashboard/bootstrap/transitions";
+@import "dashboard/bootstrap/dropdown";
+@import "dashboard/bootstrap/button-group";
+@import "dashboard/bootstrap/input-group";
+@import "dashboard/bootstrap/custom-forms";
+@import "dashboard/bootstrap/nav";
+@import "dashboard/bootstrap/navbar";
+@import "dashboard/bootstrap/card";
+@import "dashboard/bootstrap/breadcrumb";
+@import "dashboard/bootstrap/pagination";
+@import "dashboard/bootstrap/badge";
+@import "dashboard/bootstrap/jumbotron";
+@import "dashboard/bootstrap/alert";
+@import "dashboard/bootstrap/progress";
+@import "dashboard/bootstrap/media";
+@import "dashboard/bootstrap/list-group";
+@import "dashboard/bootstrap/close";
+@import "dashboard/bootstrap/modal";
+@import "dashboard/bootstrap/tooltip";
+@import "dashboard/bootstrap/popover";
+@import "dashboard/bootstrap/carousel";
+@import "dashboard/bootstrap/utilities";
+@import "dashboard/bootstrap/print";
+
+// Utilities and components
+
+@import "dashboard/custom/reboot";
+@import "dashboard/custom/utilities";
+@import "dashboard/custom/components";
+
+// Vendor (Plugins)
+
+@import "dashboard/custom/vendors";
+
+// Docs components
+
+@import "dashboard/docs/variables";
+@import "dashboard/docs/nav";
+@import "dashboard/docs/clipboard-js";
+@import "dashboard/docs/component-examples";
+@import "dashboard/docs/prism";
+@import "dashboard/docs/content";
+@import "dashboard/docs/sidebar";
+@import "dashboard/docs/footer";
+
+// React Differences
+@import "react/react-differences";

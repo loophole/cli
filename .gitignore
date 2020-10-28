@@ -1,8 +1,13 @@
-# Binaries
+# Editors
+.vscode
+# Build assets
 cli
 loophole
 dist
-# Certs cache dir
-certs
+logs
+
+internal/app/metrics/static/dashboard/build
+rice-box.go
 # Vendor packages
 vendor
+internal/app/metrics/static/dashboard/node_modules

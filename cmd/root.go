@@ -10,6 +10,7 @@ import (
 
 	"github.com/loophole/cli/internal/app/loophole"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
+	"github.com/loophole/cli/internal/app/metrics"
 	"github.com/loophole/cli/internal/pkg/cache"
 	"github.com/mattn/go-colorable"
 	"github.com/mitchellh/go-homedir"
@@ -33,6 +34,7 @@ var rootCmd = &cobra.Command{
 		}
 		port, _ := strconv.ParseInt(args[0], 10, 32)
 		config.Port = int32(port)
+		go metrics.Serve()
 		loophole.Start(config)
 	},
 	Args: func(cmd *cobra.Command, args []string) error {
@@ -76,7 +78,7 @@ func initLogger() {
 
 	consoleWriter := zerolog.ConsoleWriter{Out: colorable.NewColorableStderr()}
 	multi := zerolog.MultiLevelWriter(consoleWriter, f)
-	log.Logger = zerolog.New(multi).With().Timestamp().Logger()
+	log.Logger = zerolog.New(multi).With().Timestamp().Str("component", "loophole").Logger()
 
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	if verbose {
