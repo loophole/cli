@@ -44,7 +44,7 @@ func TestGetLocalStorageFileReturnsCorrectPath(t *testing.T) {
 	filename := "expected-filename"
 
 	expectedPath := fmt.Sprintf("%s/.loophole/%s", home, filename)
-	filePath := GetLocalStorageFile(filename)
+	filePath := GetLocalStorageFile(filename, "")
 
 	if expectedPath != filePath {
 		t.Fatalf("Created directory path '%s' is different than expected: '%s'", filePath, expectedPath)
@@ -53,7 +53,7 @@ func TestGetLocalStorageFileReturnsCorrectPath(t *testing.T) {
 
 func TestGetLocalStorageDirDoesntCreateFile(t *testing.T) {
 	filename := "expected-filename"
-	filePath := GetLocalStorageFile(filename)
+	filePath := GetLocalStorageFile(filename, "")
 
 	_, err := os.Stat(filePath)
 	if !os.IsNotExist(err) {
