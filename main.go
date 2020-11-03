@@ -72,9 +72,18 @@ func main() {
 					os.Exit(1)
 				}
 				if runtime.GOOS == "windows" {
-					extractZip(archiveName+archiveExt, fileName)
+					err = extractZip(archiveName+archiveExt, fileName)
+					if err != nil {
+						fmt.Println(err.Error())
+						os.Exit(1)
+					}
+				} else {
+					err = extractTarGz(archiveName+archiveExt, fileName)
+					if err != nil {
+						fmt.Println(err.Error())
+						os.Exit(1)
+					}
 				}
-				extractTarGz(archiveName+archiveExt, fileName)
 				err = os.Remove(archiveName + archiveExt)
 				if err != nil {
 					fmt.Println("Unable to delete downloaded compressed file: " + err.Error())
@@ -133,6 +142,11 @@ func extractTarGz(src, dest string) error {
 			return err
 		}
 
+		if strings.Contains(header.Name, "..") {
+			fmt.Println("Illegal path: File name contains '..'")
+			os.Exit(1)
+		}
+
 		switch header.Typeflag {
 		case tar.TypeDir:
 			if err := os.Mkdir(header.Name, 0755); err != nil {
@@ -173,6 +187,11 @@ func extractZip(src, dest string) error {
 			return err
 		}
 		defer data.Close()
+
+		if strings.Contains(file.Name, "..") {
+			fmt.Println("Illegal path: File name contains '..'")
+			os.Exit(1)
+		}
 
 		path := filepath.Join(dest, file.Name)
 
