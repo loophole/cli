@@ -40,12 +40,16 @@ var remoteEndpoint = lm.Endpoint{
 
 var colorableOutput = colorable.NewColorableStdout()
 var successfulConnectionOccured bool = false
+var terminalState *terminal.State = nil
 
 func setupCloseHandler() {
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
+		if terminalState != nil {
+			terminal.Restore(int(os.Stdin.Fd()), terminalState)
+		}
 		printFeedbackMessage()
 		os.Exit(0)
 	}()
@@ -64,7 +68,15 @@ func parsePublicKey(file string) (ssh.AuthMethod, ssh.PublicKey, error) {
 	if err != nil {
 		if errors.As(err, &passwordError) {
 			fmt.Fprint(colorableOutput, "Enter SSH password:")
+			terminalState, err = terminal.GetState(int(os.Stdin.Fd()))
+			if err != nil {
+				return nil, nil, err
+			}
+
 			password, _ := terminal.ReadPassword(int(os.Stdin.Fd()))
+
+			terminalState = nil
+
 			fmt.Println()
 			signer, err = ssh.ParsePrivateKeyWithPassphrase(key, []byte(password))
 			if err != nil {
