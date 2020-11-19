@@ -1,6 +1,10 @@
 package keys
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -15,7 +19,26 @@ import (
 //ParsePublicKey retrieves an ssh.AuthMethod and the related PublicKey
 func ParsePublicKey(terminalState *terminal.State, file string) (ssh.AuthMethod, ssh.PublicKey, error) {
 	privateKey, err := ioutil.ReadFile(file)
-	if err != nil {
+
+	var pathError *os.PathError
+	if errors.As(err, &pathError) { //if no keys are found, they are generated
+		var publicKey []byte
+		bitSize := 4096
+		privateKey, publicKey, err = generateKeyPair(bitSize)
+		if err != nil {
+			return nil, nil, err
+		}
+		err := ioutil.WriteFile(file, privateKey, 0600)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		err = ioutil.WriteFile(file+".pub", publicKey, 0600)
+		if err != nil {
+			return nil, nil, err
+		}
+
+	} else if err != nil {
 		return nil, nil, err
 	}
 
@@ -33,6 +56,12 @@ func ParsePublicKey(terminalState *terminal.State, file string) (ssh.AuthMethod,
 			signer, err = getSignerFromSSHAgent(publicKey)
 			if err != nil {
 				fmt.Print("Enter SSH password:")
+				terminalState, err = terminal.GetState(int(os.Stdin.Fd()))
+				if err != nil {
+					return nil, nil, err
+				}
+				terminalState = nil
+
 				password, _ := terminal.ReadPassword(int(os.Stdin.Fd()))
 				fmt.Println()
 				signer, err = ssh.ParsePrivateKeyWithPassphrase(privateKey, []byte(password))
@@ -46,6 +75,42 @@ func ParsePublicKey(terminalState *terminal.State, file string) (ssh.AuthMethod,
 	}
 
 	return ssh.PublicKeys(signer), signer.PublicKey(), nil
+}
+
+//adapted from https://gist.github.com/devinodaniel/8f9b8a4f31573f428f29ec0e884e6673
+func generateKeyPair(bitSize int) (private []byte, public []byte, err error) {
+	// Private Key generation
+	privateKey, err := rsa.GenerateKey(rand.Reader, bitSize)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Validate Private Key
+	err = privateKey.Validate()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Get ASN.1 DER format
+	privDER := x509.MarshalPKCS1PrivateKey(privateKey)
+
+	// pem.Block
+	privBlock := pem.Block{
+		Type:    "RSA PRIVATE KEY",
+		Headers: nil,
+		Bytes:   privDER,
+	}
+
+	// Private key in PEM format
+	privatePEM := pem.EncodeToMemory(&privBlock)
+	publicKey, err := ssh.NewPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	pubKeyBytes := ssh.MarshalAuthorizedKey(publicKey)
+
+	return privatePEM, pubKeyBytes, nil
 }
 
 //getSignerFromSSHAgent connects to the SSH Agent and tries to return a signer for the given publicKey
