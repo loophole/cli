@@ -13,10 +13,10 @@ import (
 
 var localEndpointSpecs lm.LocalHttpEndpointSpecs
 
-var portCmd = &cobra.Command{
-	Use:   "port <port> [host]",
-	Short: "Expose given port to the public",
-	Long:  "Expose host:port to the public",
+var httpCmd = &cobra.Command{
+	Use:   "http <port> [host]",
+	Short: "Expose http server on given port to the public",
+	Long:  "Expose http server on host:port to the public",
 	Run: func(cmd *cobra.Command, args []string) {
 		localEndpointSpecs.Host = "127.0.0.1"
 		if len(args) > 1 {
@@ -43,7 +43,8 @@ var portCmd = &cobra.Command{
 }
 
 func init() {
+	initServeCommand(httpCmd)
 	localEndpointSpecs.HTTPS = false
 
-	serveCmd.AddCommand(portCmd)
+	rootCmd.AddCommand(httpCmd)
 }

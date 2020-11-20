@@ -31,5 +31,6 @@ var dirCmd = &cobra.Command{
 }
 
 func init() {
-	serveCmd.AddCommand(dirCmd)
+	initServeCommand(dirCmd)
+	rootCmd.AddCommand(dirCmd)
 }
