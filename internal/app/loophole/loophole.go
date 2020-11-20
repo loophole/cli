@@ -254,11 +254,7 @@ func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs, displayOptions lm.Displ
 
 	siteAddr := fmt.Sprintf("https://%s.loophole.site", siteID)
 
-	communication.PrintTunnelSuccessMessage(siteAddr, localEndpoint)
-
-	if displayOptions.QR {
-		communication.QRCode(siteAddr)
-	}
+	communication.PrintTunnelSuccessMessage(siteAddr, localEndpoint, displayOptions.QR)
 
 	for {
 		client, err := listenerHTTPSOverSSH.Accept()

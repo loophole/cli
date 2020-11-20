@@ -21,12 +21,19 @@ func PrintWelcomeMessage() {
 	NewLine()
 }
 
-func PrintTunnelSuccessMessage(siteAddr string, localAddr string) {
+func PrintTunnelSuccessMessage(siteAddr string, localAddr string, displayQR bool) {
 	NewLine()
 	fmt.Fprint(colorableOutput, "Forwarding ")
 	fmt.Fprint(colorableOutput, aurora.Green(siteAddr))
 	fmt.Fprint(colorableOutput, " -> ")
 	fmt.Fprint(colorableOutput, aurora.Green(localAddr))
+	if displayQR {
+		NewLine()
+		NewLine()
+		Write("Scan the below QR code to open the site:")
+		NewLine()
+		QRCode(siteAddr)
+	}
 	NewLine()
 	WriteItalic("TLS Certificate will be obtained with first request to the above address, therefore first execution may be slower")
 	NewLine()
