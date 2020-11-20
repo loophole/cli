@@ -7,6 +7,7 @@ import (
 	"github.com/briandowns/spinner"
 	"github.com/logrusorgru/aurora"
 	"github.com/mattn/go-colorable"
+	"github.com/mdp/qrterminal"
 	"github.com/rs/zerolog/log"
 )
 
@@ -16,8 +17,8 @@ var loader = spinner.New(spinner.CharSets[9], 100*time.Millisecond, spinner.With
 func PrintWelcomeMessage() {
 	fmt.Fprint(colorableOutput, aurora.Cyan("Loophole"))
 	fmt.Fprint(colorableOutput, aurora.Italic(" - End to end TLS encrypted TCP communication between you and your clients"))
-	fmt.Println()
-	fmt.Println()
+	NewLine()
+	NewLine()
 }
 
 func PrintTunnelSuccessMessage(siteAddr string, localAddr string) {
@@ -94,4 +95,15 @@ func WriteCyan(message string) {
 func WriteItalic(message string) {
 	fmt.Fprint(colorableOutput, fmt.Sprintf("%s", aurora.Italic(message)))
 	NewLine()
+}
+
+func QRCode(siteAddr string) {
+	QRconfig := qrterminal.Config{
+		Level:     qrterminal.L,
+		Writer:    colorableOutput,
+		BlackChar: qrterminal.WHITE,
+		WhiteChar: qrterminal.BLACK,
+		QuietZone: 1,
+	}
+	qrterminal.GenerateWithConfig(siteAddr, QRconfig)
 }

@@ -15,8 +15,6 @@ import (
 	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/loophole/cli/internal/pkg/httpserver"
 	"github.com/loophole/cli/internal/pkg/keys"
-	"github.com/mattn/go-colorable"
-	"github.com/mdp/qrterminal"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
@@ -28,7 +26,6 @@ var remoteEndpoint = lm.Endpoint{
 	Port: 80,
 }
 
-var colorableOutput = colorable.NewColorableStdout()
 var successfulConnectionOccured bool = false
 var terminalState *terminal.State = nil
 
@@ -245,14 +242,7 @@ func ForwardPort(config lm.ExposeHttpConfig) {
 	communication.PrintTunnelSuccessMessage(siteAddr, localEndpoint.URI())
 
 	if config.Display.QR {
-		QRconfig := qrterminal.Config{
-			Level:     qrterminal.L,
-			Writer:    colorableOutput,
-			BlackChar: qrterminal.WHITE,
-			WhiteChar: qrterminal.BLACK,
-			QuietZone: 1,
-		}
-		qrterminal.GenerateWithConfig(siteAddr, QRconfig)
+		communication.QRCode(siteAddr)
 	}
 
 	for {
@@ -303,14 +293,7 @@ func ForwardDirectory(config lm.ExposeDirectoryConfig) {
 	communication.PrintTunnelSuccessMessage(siteAddr, config.Local.Path)
 
 	if config.Display.QR {
-		QRconfig := qrterminal.Config{
-			Level:     qrterminal.L,
-			Writer:    colorableOutput,
-			BlackChar: qrterminal.WHITE,
-			WhiteChar: qrterminal.BLACK,
-			QuietZone: 1,
-		}
-		qrterminal.GenerateWithConfig(siteAddr, QRconfig)
+		communication.QRCode(siteAddr)
 	}
 
 	for {
