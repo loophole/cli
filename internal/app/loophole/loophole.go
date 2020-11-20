@@ -230,48 +230,7 @@ func ForwardPort(config lm.ExposeHttpConfig) {
 	publicKeyAuthMethod, publicKey := parsePublicKey(terminalState, config.Remote.IdentityFile)
 	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID)
 	server := createTLSReverseProxy(localEndpoint, siteID)
-	localListenerEndpoint := startLocalHTTPServer(server)
-
-	serverSSHConnHTTPS := connectViaSSH(config.Remote.GatewayEndpoint, siteID, publicKeyAuthMethod)
-	defer serverSSHConnHTTPS.Close()
-	listenerHTTPSOverSSH := listenOnRemoteEndpoint(serverSSHConnHTTPS)
-	defer listenerHTTPSOverSSH.Close()
-
-	siteAddr := fmt.Sprintf("https://%s.loophole.site", siteID)
-
-	communication.PrintTunnelSuccessMessage(siteAddr, localEndpoint.URI())
-
-	if config.Display.QR {
-		communication.QRCode(siteAddr)
-	}
-
-	for {
-		client, err := listenerHTTPSOverSSH.Accept()
-		if err == io.EOF {
-			log.Info().Err(err).Msg("Connection dropped, reconnecting...")
-			listenerHTTPSOverSSH.Close()
-			serverSSHConnHTTPS = connectViaSSH(config.Remote.GatewayEndpoint, siteID, publicKeyAuthMethod)
-			defer serverSSHConnHTTPS.Close()
-			listenerHTTPSOverSSH = listenOnRemoteEndpoint(serverSSHConnHTTPS)
-			defer listenerHTTPSOverSSH.Close()
-			continue
-		} else if err != nil {
-			log.Warn().Err(err).Msg("Failed to accept connection over HTTPS")
-			continue
-		}
-		successfulConnectionOccured = true
-		go func() {
-			log.Info().Msg("Succeeded to accept connection over HTTPS")
-			local, err := net.Dial("tcp", localListenerEndpoint.URI())
-			if err != nil {
-				log.Fatal().Err(err).Msg("Dialing into local proxy for HTTPS failed")
-			}
-			if el := log.Debug(); el.Enabled() {
-				el.Msg("Dialing into local proxy for HTTPS succeeded")
-			}
-			handleClient(client, local)
-		}()
-	}
+	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, localEndpoint.URI())
 }
 
 func ForwardDirectory(config lm.ExposeDirectoryConfig) {
@@ -281,18 +240,23 @@ func ForwardDirectory(config lm.ExposeDirectoryConfig) {
 	publicKeyAuthMethod, publicKey := parsePublicKey(terminalState, config.Remote.IdentityFile)
 	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID)
 	server := getStaticFileServer(config.Local.Path, siteID)
+
+	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, config.Local.Path)
+}
+
+func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs, displayOptions lm.DisplayOptions, authMethod ssh.AuthMethod, siteID string, server *http.Server, localEndpoint string) {
 	localListenerEndpoint := startLocalHTTPServer(server)
 
-	serverSSHConnHTTPS := connectViaSSH(config.Remote.GatewayEndpoint, siteID, publicKeyAuthMethod)
+	serverSSHConnHTTPS := connectViaSSH(remoteEndpointSpecs.GatewayEndpoint, siteID, authMethod)
 	defer serverSSHConnHTTPS.Close()
 	listenerHTTPSOverSSH := listenOnRemoteEndpoint(serverSSHConnHTTPS)
 	defer listenerHTTPSOverSSH.Close()
 
 	siteAddr := fmt.Sprintf("https://%s.loophole.site", siteID)
 
-	communication.PrintTunnelSuccessMessage(siteAddr, config.Local.Path)
+	communication.PrintTunnelSuccessMessage(siteAddr, localEndpoint)
 
-	if config.Display.QR {
+	if displayOptions.QR {
 		communication.QRCode(siteAddr)
 	}
 
@@ -301,7 +265,7 @@ func ForwardDirectory(config lm.ExposeDirectoryConfig) {
 		if err == io.EOF {
 			log.Info().Err(err).Msg("Connection dropped, reconnecting...")
 			listenerHTTPSOverSSH.Close()
-			serverSSHConnHTTPS = connectViaSSH(config.Remote.GatewayEndpoint, siteID, publicKeyAuthMethod)
+			serverSSHConnHTTPS = connectViaSSH(remoteEndpointSpecs.GatewayEndpoint, siteID, authMethod)
 			defer serverSSHConnHTTPS.Close()
 			listenerHTTPSOverSSH = listenOnRemoteEndpoint(serverSSHConnHTTPS)
 			defer listenerHTTPSOverSSH.Close()
