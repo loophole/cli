@@ -1,8 +1,8 @@
 # Binaries
-cli
-loophole
-dist
+/cli
+/loophole
+/dist
 # Certs cache dir
-certs
+/certs
 # Vendor packages
-vendor
+/vendor

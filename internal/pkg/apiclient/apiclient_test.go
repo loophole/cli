@@ -1,4 +1,4 @@
-package client
+package apiclient
 
 import (
 	"crypto/rand"
@@ -21,8 +21,7 @@ func TestRegisterSiteSuccessOKShouldPropagateWithoutIdProvided(t *testing.T) {
 	getAccessToken = func() (string, error) { return "some-token", nil }
 
 	expectedSiteID := "randomidwhichissuperlong"
-	expectedStatus := http.StatusOK
-	srv := serverMock(expectedStatus, fmt.Sprintf(`{
+	srv := serverMock(http.StatusCreated, fmt.Sprintf(`{
 		"siteId": "%s"
 	}`, expectedSiteID))
 	defer srv.Close()
@@ -32,11 +31,11 @@ func TestRegisterSiteSuccessOKShouldPropagateWithoutIdProvided(t *testing.T) {
 	}
 	result, err := RegisterSite(srv.URL, publicKey, "")
 
-	if result.ResultCode != expectedStatus {
-		t.Fatalf("Status code is different than expected: %d", result.ResultCode)
+	if err != nil {
+		t.Fatalf("Unexpected error returned: %v", err)
 	}
-	if result.SiteID != expectedSiteID {
-		t.Fatalf("Site ID '%s' is different than expected: %s", expectedSiteID, result.SiteID)
+	if result != expectedSiteID {
+		t.Fatalf("Site ID '%s' is different than expected: %s", expectedSiteID, result)
 	}
 }
 
@@ -50,8 +49,7 @@ func TestRegisterSiteSuccessCreatedShouldPropagateWithoutIdProvided(t *testing.T
 	getAccessToken = func() (string, error) { return "some-token", nil }
 
 	expectedSiteID := "randomidwhichissuperlong"
-	expectedStatus := http.StatusCreated
-	srv := serverMock(expectedStatus, fmt.Sprintf(`{
+	srv := serverMock(http.StatusCreated, fmt.Sprintf(`{
 		"siteId": "%s"
 	}`, expectedSiteID))
 	defer srv.Close()
@@ -61,11 +59,11 @@ func TestRegisterSiteSuccessCreatedShouldPropagateWithoutIdProvided(t *testing.T
 	}
 	result, err := RegisterSite(srv.URL, publicKey, "")
 
-	if result.ResultCode != expectedStatus {
-		t.Fatalf("Status code is different than expected: %d", result.ResultCode)
+	if err != nil {
+		t.Fatalf("Unexpected error returned: %v", err)
 	}
-	if result.SiteID != expectedSiteID {
-		t.Fatalf("Site ID '%s' is different than expected: %s", expectedSiteID, result.SiteID)
+	if result != expectedSiteID {
+		t.Fatalf("Site ID '%s' is different than expected: %s", expectedSiteID, result)
 	}
 }
 
@@ -90,11 +88,11 @@ func TestRegisterSiteSuccessOKShouldPropagateWithIdProvided(t *testing.T) {
 	}
 	result, err := RegisterSite(srv.URL, publicKey, expectedSiteID)
 
-	if result.ResultCode != expectedStatus {
-		t.Fatalf("Status code '%d' is different than expected: %d", result.ResultCode, expectedStatus)
+	if err != nil {
+		t.Fatalf("Unexpected error returned: %v", err)
 	}
-	if result.SiteID != expectedSiteID {
-		t.Fatalf("Site ID '%s' is different than expected: %s", result.SiteID, expectedSiteID)
+	if result != expectedSiteID {
+		t.Fatalf("Site ID '%s' is different than expected: %s", result, expectedSiteID)
 	}
 }
 
@@ -108,8 +106,7 @@ func TestRegisterSiteSuccessCreatedShouldPropagateWithIdProvided(t *testing.T) {
 	getAccessToken = func() (string, error) { return "some-token", nil }
 
 	expectedSiteID := "providedhostname"
-	expectedStatus := http.StatusCreated
-	srv := serverMock(expectedStatus, fmt.Sprintf(`{
+	srv := serverMock(http.StatusCreated, fmt.Sprintf(`{
 		"siteId": "%s"
 	}`, expectedSiteID))
 	defer srv.Close()
@@ -119,11 +116,11 @@ func TestRegisterSiteSuccessCreatedShouldPropagateWithIdProvided(t *testing.T) {
 	}
 	result, err := RegisterSite(srv.URL, publicKey, expectedSiteID)
 
-	if result.ResultCode != expectedStatus {
-		t.Fatalf("Status code '%d' is different than expected: %d", result.ResultCode, expectedStatus)
+	if err != nil {
+		t.Fatalf("Unexpected error returned: %v", err)
 	}
-	if result.SiteID != expectedSiteID {
-		t.Fatalf("Site ID '%s' is different than expected: %s", result.SiteID, expectedSiteID)
+	if result != expectedSiteID {
+		t.Fatalf("Site ID '%s' is different than expected: %s", result, expectedSiteID)
 	}
 }
 
@@ -139,7 +136,7 @@ func TestRegisterSiteError400ShouldPropagateError(t *testing.T) {
 	expectedErrorMessage := "You did something bad"
 	expectedStatus := http.StatusBadRequest
 	srv := serverMock(expectedStatus, fmt.Sprintf(`{
-		"statusCode": "400",
+		"statusCode": 400,
 		"error": "Bad request",
 		"message": "%s"
 	}`, expectedErrorMessage))
@@ -153,11 +150,18 @@ func TestRegisterSiteError400ShouldPropagateError(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected an error to be returned")
 	}
-	if result.SiteID != "" {
-		t.Fatalf("Expected site ID to be empty, got %s", result.SiteID)
+	requestErr, ok := err.(RequestError)
+	if !ok {
+		t.Fatalf("Expected RequestError to be returned")
 	}
-	if err.Error() != expectedErrorMessage {
-		t.Fatalf("Expected '%s' error, got '%s", expectedErrorMessage, err.Error())
+	if result != "" {
+		t.Fatalf("Expected site ID to be empty, got %s", result)
+	}
+	if requestErr.StatusCode != expectedStatus {
+		t.Fatalf("Expected '%d' status, got '%d", expectedStatus, requestErr.StatusCode)
+	}
+	if requestErr.Message != expectedErrorMessage {
+		t.Fatalf("Expected '%s' message, got '%s", expectedErrorMessage, requestErr.Message)
 	}
 }
 
@@ -173,7 +177,7 @@ func TestRegisterSiteError401ShouldPropagateError(t *testing.T) {
 	expectedErrorMessage := "You are not authenticated"
 	expectedStatus := http.StatusUnauthorized
 	srv := serverMock(expectedStatus, fmt.Sprintf(`{
-		"statusCode": "401",
+		"statusCode": 401,
 		"error": "Unauthorized",
 		"message": "%s"
 	}`, expectedErrorMessage))
@@ -187,11 +191,18 @@ func TestRegisterSiteError401ShouldPropagateError(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected an error to be returned")
 	}
-	if result.SiteID != "" {
-		t.Fatalf("Expected site ID to be empty, got %s", result.SiteID)
+	requestErr, ok := err.(RequestError)
+	if !ok {
+		t.Fatalf("Expected RequestError to be returned")
 	}
-	if err.Error() != expectedErrorMessage {
-		t.Fatalf("Expected '%s' error, got '%s", expectedErrorMessage, err.Error())
+	if result != "" {
+		t.Fatalf("Expected site ID to be empty, got %s", result)
+	}
+	if requestErr.StatusCode != expectedStatus {
+		t.Fatalf("Expected '%d' status, got '%d", expectedStatus, requestErr.StatusCode)
+	}
+	if requestErr.Details != expectedErrorMessage {
+		t.Fatalf("Expected '%s' message, got '%s", expectedErrorMessage, requestErr.Details)
 	}
 }
 
@@ -207,7 +218,7 @@ func TestRegisterSiteError403ShouldPropagateError(t *testing.T) {
 	expectedErrorMessage := "You are not allowed to do this"
 	expectedStatus := http.StatusForbidden
 	srv := serverMock(expectedStatus, fmt.Sprintf(`{
-		"statusCode": "403",
+		"statusCode": 403,
 		"error": "Forbidden",
 		"message": "%s"
 	}`, expectedErrorMessage))
@@ -221,15 +232,22 @@ func TestRegisterSiteError403ShouldPropagateError(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected an error to be returned")
 	}
-	if result.SiteID != "" {
-		t.Fatalf("Expected site ID to be empty, got %s", result.SiteID)
+	requestErr, ok := err.(RequestError)
+	if !ok {
+		t.Fatalf("Expected RequestError to be returned")
 	}
-	if err.Error() != expectedErrorMessage {
-		t.Fatalf("Expected '%s' error, got '%s", expectedErrorMessage, err.Error())
+	if result != "" {
+		t.Fatalf("Expected site ID to be empty, got %s", result)
+	}
+	if requestErr.StatusCode != expectedStatus {
+		t.Fatalf("Expected '%d' status, got '%d", expectedStatus, requestErr.StatusCode)
+	}
+	if requestErr.Details != expectedErrorMessage {
+		t.Fatalf("Expected '%s' message, got '%s", expectedErrorMessage, requestErr.Details)
 	}
 }
 
-func TestRegisterTokenNotSavedReturns600(t *testing.T) {
+func TestRegisterTokenNotSavedReturns401(t *testing.T) {
 	oldIsTokenSaved := isTokenSaved
 	defer func() { isTokenSaved = oldIsTokenSaved }()
 	isTokenSaved = func() bool { return false }
@@ -238,9 +256,7 @@ func TestRegisterTokenNotSavedReturns600(t *testing.T) {
 	defer func() { getAccessToken = oldGetAccessToken }()
 	getAccessToken = func() (string, error) { return "some-token", nil }
 
-	expectedErrorMessage := "Please log in before using Loophole"
-	expectedStatus := http.StatusOK
-	srv := serverMock(expectedStatus, `{
+	srv := serverMock(http.StatusOK, `{
 		"siteId": "whateverrrr"
 	}`)
 	defer srv.Close()
@@ -253,15 +269,19 @@ func TestRegisterTokenNotSavedReturns600(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected an error to be returned")
 	}
-	if result.SiteID != "" {
-		t.Fatalf("Expected site ID to be empty, got %s", result.SiteID)
+	requestErr, ok := err.(RequestError)
+	if !ok {
+		t.Fatalf("Expected RequestError to be returned")
 	}
-	if err.Error() != expectedErrorMessage {
-		t.Fatalf("Expected '%s' error, got '%s", expectedErrorMessage, err.Error())
+	if result != "" {
+		t.Fatalf("Expected site ID to be empty, got %s", result)
+	}
+	if requestErr.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("Expected '%d' status, got '%d", http.StatusUnauthorized, requestErr.StatusCode)
 	}
 }
 
-func TestRegisterTokenReadingProblemReturns601(t *testing.T) {
+func TestRegisterTokenReadingProblemReturns401(t *testing.T) {
 	oldIsTokenSaved := isTokenSaved
 	defer func() { isTokenSaved = oldIsTokenSaved }()
 	isTokenSaved = func() bool { return true }
@@ -270,9 +290,7 @@ func TestRegisterTokenReadingProblemReturns601(t *testing.T) {
 	defer func() { getAccessToken = oldGetAccessToken }()
 	getAccessToken = func() (string, error) { return "", fmt.Errorf("Something bad happened when reading token") }
 
-	expectedErrorMessage := "There was a problem reading token"
-	expectedStatus := http.StatusOK
-	srv := serverMock(expectedStatus, `{
+	srv := serverMock(http.StatusOK, `{
 		"siteId": "whateverrrr"
 	}`)
 	defer srv.Close()
@@ -285,11 +303,15 @@ func TestRegisterTokenReadingProblemReturns601(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected an error to be returned")
 	}
-	if result.SiteID != "" {
-		t.Fatalf("Expected site ID to be empty, got %s", result.SiteID)
+	requestErr, ok := err.(RequestError)
+	if !ok {
+		t.Fatalf("Expected RequestError to be returned")
 	}
-	if err.Error() != expectedErrorMessage {
-		t.Fatalf("Expected '%s' error, got '%s", expectedErrorMessage, err.Error())
+	if result != "" {
+		t.Fatalf("Expected site ID to be empty, got %s", result)
+	}
+	if requestErr.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("Expected '%d' status, got '%d", http.StatusUnauthorized, requestErr.StatusCode)
 	}
 }
 

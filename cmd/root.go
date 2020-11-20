@@ -1,73 +1,41 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	stdlog "log"
 	"os"
-	"strconv"
 	"time"
 
-	"github.com/loophole/cli/internal/app/loophole"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/cache"
 	"github.com/mattn/go-colorable"
-	"github.com/mitchellh/go-homedir"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"github.com/spf13/cobra"
 )
 
-var config lm.Config
-var verbose bool
+var displayOptions lm.DisplayOptions
 
 var rootCmd = &cobra.Command{
-	Use:   "loophole <port> [host]",
+	Use:   "loophole",
 	Short: "Loophole - End to end TLS encrypted TCP communication between you and your clients",
 	Long:  "Loophole - End to end TLS encrypted TCP communication between you and your clients",
 	Run: func(cmd *cobra.Command, args []string) {
-		config.Host = "127.0.0.1"
-		if len(args) > 1 {
-			config.Host = args[1]
-		}
-		port, _ := strconv.ParseInt(args[0], 10, 32)
-		config.Port = int32(port)
-		loophole.Start(config)
-	},
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 {
-			return errors.New("Missing argument: port")
-		}
-		_, err := strconv.ParseInt(args[0], 10, 32)
-		if err != nil {
-			return fmt.Errorf("Invalid argument: port: %v", err)
-		}
-		return nil
+		cmd.Help()
 	},
 }
 
 func init() {
-	home, err := homedir.Dir()
-	if err != nil {
-		panic(err)
-	}
-
 	cobra.OnInitialize(initLogger)
 
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
+	displayOptions.FeedbackFormURL = "https://forms.gle/K9ga7FZB3deaffnV7"
 
-	rootCmd.Flags().StringVarP(&config.IdentityFile, "identity-file", "i", fmt.Sprintf("%s/.ssh/id_rsa", home), "private key path")
-	config.GatewayEndpoint.Host = "gateway.loophole.host"
-	config.GatewayEndpoint.Port = 8022
-	rootCmd.Flags().StringVar(&config.SiteID, "hostname", "", "custom hostname you want to run service on")
-	config.HTTPS = false
-	rootCmd.Flags().BoolVar(&config.QR, "qr", false, "use if you want a QR version of your url to be shown")
-
+	rootCmd.PersistentFlags().BoolVarP(&displayOptions.Verbose, "verbose", "v", false, "verbose output")
 }
 
 func initLogger() {
-	logLocation := cache.GetLocalStorageFile(fmt.Sprintf("%s, %s", time.Now().Format("2006-01-02--15-04-05"), ".log"), "logs")
+	logLocation := cache.GetLocalStorageFile(fmt.Sprintf("%s.log", time.Now().Format("2006-01-02--15-04-05")), "logs")
 
 	f, err := os.Create(logLocation)
 	if err != nil {
@@ -79,7 +47,7 @@ func initLogger() {
 	log.Logger = zerolog.New(multi).With().Timestamp().Logger()
 
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	if verbose {
+	if displayOptions.Verbose {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
