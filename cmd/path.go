@@ -11,9 +11,10 @@ import (
 var dirEndpointSpecs lm.LocalDirectorySpecs
 
 var dirCmd = &cobra.Command{
-	Use:   "dir <path>",
-	Short: "Expose given directory to the public",
-	Long:  "Expose directory to the public",
+	Use:     "path <path>",
+	Aliases: []string{"dir", "directory"},
+	Short:   "Expose given directory to the public",
+	Long:    "Expose directory to the public",
 	Run: func(cmd *cobra.Command, args []string) {
 		dirEndpointSpecs.Path = args[0]
 		loophole.ForwardDirectory(lm.ExposeDirectoryConfig{

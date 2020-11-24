@@ -186,14 +186,12 @@ func startRemoteForwardServer(serverSSHConnHTTPS *ssh.Client) net.Listener {
 }
 
 func parsePublicKey(terminalState *terminal.State, identityFile string) (ssh.AuthMethod, ssh.PublicKey) {
-	communication.StartLoading("Obtaining public SSH key")
 	publicKeyAuthMethod, publicKey, err := keys.ParsePublicKey(terminalState, identityFile)
 	if err != nil {
 		communication.LoadingFailure()
 		log.Fatal().Err(err).Msg("No public key available")
 	}
 
-	communication.LoadingSuccess()
 	return publicKeyAuthMethod, publicKey
 }
 
