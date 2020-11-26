@@ -44,7 +44,7 @@ func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID string) (string
 
 	if !isTokenSaved() {
 		return "", RequestError{
-			Message:    "You're not logged in",
+			Message:    "You're not logged in, please use './loophole account login'",
 			Details:    "Cannot read locally stored token",
 			StatusCode: http.StatusUnauthorized,
 		}
