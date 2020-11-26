@@ -42,9 +42,9 @@ func NewStaticServer(localPath string, siteID string) *http.Server {
 func getTLSConfig(siteID string) *tls.Config {
 	certManager := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
-		HostPolicy: autocert.HostWhitelist(fmt.Sprintf("%s.loophole.site", siteID)),
+		HostPolicy: autocert.HostWhitelist(fmt.Sprintf("%s.loophole.host", siteID)),
 		Cache:      autocert.DirCache(cache.GetLocalStorageDir("certs")),
-		Email:      fmt.Sprintf("%s@loophole.main.dev", siteID),
+		Email:      fmt.Sprintf("lh-%s@main.dev", siteID),
 	}
 
 	return certManager.TLSConfig()

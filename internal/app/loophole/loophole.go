@@ -250,7 +250,7 @@ func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs, displayOptions lm.Displ
 	listenerHTTPSOverSSH := listenOnRemoteEndpoint(serverSSHConnHTTPS)
 	defer listenerHTTPSOverSSH.Close()
 
-	siteAddr := fmt.Sprintf("https://%s.loophole.site", siteID)
+	siteAddr := fmt.Sprintf("https://%s.loophole.host", siteID)
 
 	communication.PrintTunnelSuccessMessage(siteAddr, localEndpoint, displayOptions.QR)
 
