@@ -262,9 +262,9 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 
 	certManager := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
-		HostPolicy: autocert.HostWhitelist(fmt.Sprintf("%s.loophole.site", siteSpecs.SiteID), "abc.loophole.site"), //Your domain here
-		Cache:      autocert.DirCache(cache.GetLocalStorageDir("certs")),                                           //Folder for storing certificates
-		Email:      fmt.Sprintf("%s@loophole.main.dev", siteSpecs.SiteID),
+		HostPolicy: autocert.HostWhitelist(fmt.Sprintf("%s.loophole.host", siteSpecs.SiteID)),
+		Cache:      autocert.DirCache(cache.GetLocalStorageDir("certs")),
+		Email:      fmt.Sprintf("lh-%s@main.dev", siteSpecs.SiteID),
 	}
 	if el := log.Debug(); el.Enabled() {
 		fmt.Println()
@@ -331,7 +331,7 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 
 	fmt.Println()
 	fmt.Fprint(colorableOutput, "Forwarding ")
-	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("https://%s.loophole.site", siteSpecs.SiteID)))
+	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("https://%s.loophole.host", siteSpecs.SiteID)))
 	fmt.Fprint(colorableOutput, " -> ")
 	fmt.Fprint(colorableOutput, aurora.Green(fmt.Sprintf("%s:%d", config.Host, config.Port)))
 	fmt.Println()
@@ -343,7 +343,7 @@ func generateListener(config lm.Config, publicKeyAuthMethod *ssh.AuthMethod, pub
 			WhiteChar: qrterminal.BLACK,
 			QuietZone: 1,
 		}
-		qrterminal.GenerateWithConfig(fmt.Sprintf("http://%s.loophole.site", siteSpecs.SiteID), QRconfig)
+		qrterminal.GenerateWithConfig(fmt.Sprintf("http://%s.loophole.host", siteSpecs.SiteID), QRconfig)
 	}
 	fmt.Fprint(colorableOutput, fmt.Sprintf("%s", aurora.Italic("TLS Certificate will be obtained with first request to the above address, therefore first execution may be slower\n")))
 	fmt.Println()
