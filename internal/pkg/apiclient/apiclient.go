@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/loophole/cli/internal/pkg/token"
 	"github.com/rs/zerolog/log"
@@ -44,7 +45,7 @@ func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID string) (string
 
 	if !isTokenSaved() {
 		return "", RequestError{
-			Message:    "You're not logged in, please use './loophole account login'",
+			Message:    fmt.Sprintf("You're not logged in, please use '%s account login'", os.Args[0]),
 			Details:    "Cannot read locally stored token",
 			StatusCode: http.StatusUnauthorized,
 		}
