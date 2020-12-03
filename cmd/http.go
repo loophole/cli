@@ -16,7 +16,10 @@ var localEndpointSpecs lm.LocalHttpEndpointSpecs
 var httpCmd = &cobra.Command{
 	Use:   "http <port> [host]",
 	Short: "Expose http server on given port to the public",
-	Long:  "Expose http server on host:port to the public",
+	Long: `Exposes http server running locally, or on locally available machine to the public via loophole tunnel.
+
+To expose server running locally on port 3000 simply use 'loophole http 3000'.
+To expose port running on some local host e.g. 192.168.1.20 use 'loophole http <port> 192.168.1.20'`,
 	Run: func(cmd *cobra.Command, args []string) {
 		localEndpointSpecs.Host = "127.0.0.1"
 		if len(args) > 1 {

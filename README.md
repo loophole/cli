@@ -20,7 +20,12 @@ and following the instructions there, then execute
 
 ```
 # Forward application running on local port 3000 to the world
-$ loophole 3000
+$ loophole http 3000
+```
+
+```
+# Forward local directory to the world
+$ loophole dir ./my-directory
 ```
 
 Congrats, you can now share the presented link to the world.
