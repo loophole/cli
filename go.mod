@@ -3,6 +3,7 @@ module github.com/loophole/cli
 go 1.14
 
 require (
+	github.com/abbot/go-http-auth v0.4.0
 	github.com/briandowns/spinner v1.11.1
 	github.com/coreos/etcd v3.3.10+incompatible
 	github.com/go-acme/lego/v3 v3.7.0
@@ -14,6 +15,7 @@ require (
 	github.com/rs/zerolog v1.19.0
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/spf13/cobra v1.0.0
+	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.4.0
 	go.uber.org/zap v1.15.0
 	golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073
