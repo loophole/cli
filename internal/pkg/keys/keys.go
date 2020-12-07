@@ -146,10 +146,12 @@ func getSignerFromSSHAgent(publicKey []byte) (ssh.Signer, error) {
 	return signers[index], nil
 }
 
-//keySavedInSSHAgent goes through the identities saved in SSH Agent and looks for a specific key. If found, it returns true and the index, otherwise false and -1.
+//keySavedInSSHAgent goes through the identities saved in SSH Agent and looks for a specific key.
+//If found, it returns true and the index, otherwise false and -1.
 func keySavedInSSHAgent(publicKey []byte, identities []*agent.Key) (result bool, index int) {
 	for i, identity := range identities {
-		publicKeyString := string(publicKey)[:len(string(publicKey))-1] //In my tests, string(publicKey) has 1 extra character added at the end which would make the comparison to identity.String() fail if not removed
+		//In my tests, string(publicKey) has 1 extra character added at the end which would make the comparison to identity.String() fail if not removed
+		publicKeyString := string(publicKey)[:len(string(publicKey))-1]
 		if publicKeyString == identity.String() {
 			return true, i
 		}
