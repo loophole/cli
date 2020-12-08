@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/cache"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 var remoteEndpointSpecs lm.RemoteEndpointSpecs
@@ -32,20 +34,34 @@ func initServeCommand(serveCmd *cobra.Command) {
 	serveCmd.PersistentFlags().StringVarP(&remoteEndpointSpecs.BasicAuthPassword, basicAuthPasswordFlagName, "p", "", "Basic authentication password to protect site with")
 }
 
-func validateBasicAuthFlags(flagset *pflag.FlagSet) error {
+func parseBasicAuthFlags(flagset *pflag.FlagSet) error {
 	usernameProvided := false
 	passwordProvided := false
+	var passwordFlag *pflag.Flag
 
 	flagset.VisitAll(func(flag *pflag.Flag) {
 		if flag.Name == basicAuthUsernameFlagName && flag.Value.String() != "" {
 			usernameProvided = true
 		}
-		if flag.Name == basicAuthPasswordFlagName && flag.Value.String() != "" {
-			passwordProvided = true
+		if flag.Name == basicAuthPasswordFlagName {
+			passwordFlag = flag
+			if flag.Value.String() != "" {
+				passwordProvided = true
+			}
 		}
 	})
 
-	if usernameProvided != passwordProvided {
+	if usernameProvided && !passwordProvided {
+		fmt.Print("Enter basic auth password:")
+
+		password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			return err
+		}
+		fmt.Println()
+		passwordFlag.Value.Set(string(password))
+	}
+	if passwordProvided && !usernameProvided {
 		return fmt.Errorf("When using basic auth, both %s and %s have to be provided", basicAuthUsernameFlagName, basicAuthPasswordFlagName)
 	}
 
