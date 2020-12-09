@@ -128,12 +128,27 @@ func connectViaSSH(gatewayEndpoint lm.Endpoint, username string, authMethod ssh.
 	return serverSSHConnHTTPS
 }
 
-func createTLSReverseProxy(localEndpoint lm.Endpoint, siteID string) *http.Server {
-	server := httpserver.NewProxy(localEndpoint, siteID)
+func createTLSReverseProxy(localEndpoint lm.Endpoint, siteID string, basicAuthUsername string, basicAuthPassword string) *http.Server {
+	communication.StartLoading("Starting local TLS proxy server")
+	serverBuilder := httpserver.New().
+		WithHostname(siteID).
+		Proxy().
+		ToEndpoint(localEndpoint)
+
+	if basicAuthUsername != "" && basicAuthPassword != "" {
+		serverBuilder = serverBuilder.
+			WithBasicAuth(basicAuthUsername, basicAuthPassword)
+	}
+
 	if el := log.Debug(); el.Enabled() {
 		el.
 			Str("target", localEndpoint.URI()).
 			Msg("Proxy via http created")
+	}
+	server, err := serverBuilder.Build()
+	if err != nil {
+		communication.LoadingFailure()
+		log.Fatal().Err(err).Msg("Something went wrong while creating server")
 	}
 	return server
 }
@@ -195,10 +210,24 @@ func parsePublicKey(terminalState *terminal.State, identityFile string) (ssh.Aut
 	return publicKeyAuthMethod, publicKey
 }
 
-func getStaticFileServer(path string, siteID string) *http.Server {
+func getStaticFileServer(path string, siteID string, basicAuthUsername string, basicAuthPassword string) *http.Server {
 	communication.StartLoading("Starting local file server")
-	server := httpserver.NewStaticServer(path, siteID)
+	serverBuilder := httpserver.New().
+		WithHostname(siteID).
+		ServeStatic().
+		FromDirectory(path)
+
+	if basicAuthUsername != "" && basicAuthPassword != "" {
+		serverBuilder = serverBuilder.
+			WithBasicAuth(basicAuthUsername, basicAuthPassword)
+	}
+
 	communication.LoadingSuccess()
+	server, err := serverBuilder.Build()
+	if err != nil {
+		communication.LoadingFailure()
+		log.Fatal().Err(err).Msg("Something went wrong while creating server")
+	}
 	return server
 }
 
@@ -227,7 +256,7 @@ func ForwardPort(config lm.ExposeHttpConfig) {
 
 	publicKeyAuthMethod, publicKey := parsePublicKey(terminalState, config.Remote.IdentityFile)
 	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID)
-	server := createTLSReverseProxy(localEndpoint, siteID)
+	server := createTLSReverseProxy(localEndpoint, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword)
 	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, localEndpoint.URI())
 }
 
@@ -237,7 +266,7 @@ func ForwardDirectory(config lm.ExposeDirectoryConfig) {
 
 	publicKeyAuthMethod, publicKey := parsePublicKey(terminalState, config.Remote.IdentityFile)
 	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID)
-	server := getStaticFileServer(config.Local.Path, siteID)
+	server := getStaticFileServer(config.Local.Path, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword)
 
 	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, config.Local.Path)
 }

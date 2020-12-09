@@ -31,6 +31,9 @@ To expose local directory (e.g. /data/my-data) simply use 'loophole path /data/m
 		}
 		return nil
 	},
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		return parseBasicAuthFlags(cmd.Flags())
+	},
 }
 
 func init() {
