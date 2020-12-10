@@ -6,6 +6,7 @@ import (
 
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/cache"
+	"github.com/loophole/cli/internal/pkg/closehandler"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/crypto/ssh/terminal"
@@ -35,6 +36,7 @@ func initServeCommand(serveCmd *cobra.Command) {
 }
 
 func parseBasicAuthFlags(flagset *pflag.FlagSet) error {
+	closehandler.SetupCloseHandler()
 	usernameProvided := false
 	passwordProvided := false
 	var passwordFlag *pflag.Flag

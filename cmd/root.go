@@ -29,8 +29,6 @@ var rootCmd = &cobra.Command{
 func init() {
 	cobra.OnInitialize(initLogger)
 
-	displayOptions.FeedbackFormURL = "https://forms.gle/K9ga7FZB3deaffnV7"
-
 	rootCmd.PersistentFlags().BoolVarP(&displayOptions.Verbose, "verbose", "v", false, "verbose output")
 }
 

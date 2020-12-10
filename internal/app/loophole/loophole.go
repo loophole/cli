@@ -5,45 +5,23 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/apiclient"
+	"github.com/loophole/cli/internal/pkg/closehandler"
 	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/loophole/cli/internal/pkg/httpserver"
 	"github.com/loophole/cli/internal/pkg/keys"
 	"github.com/loophole/cli/internal/pkg/urlmaker"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 // remote forwarding port (on remote SSH server network)
 var remoteEndpoint = lm.Endpoint{
 	Host: "127.0.0.1",
 	Port: 80,
-}
-
-var successfulConnectionOccured bool = false
-var terminalState *terminal.State = nil
-
-func setupCloseHandler(feedbackFormURL string) {
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-c
-		if terminalState != nil {
-			terminal.Restore(int(os.Stdin.Fd()), terminalState)
-		}
-		communication.PrintGoodbyeMessage()
-		if successfulConnectionOccured {
-			communication.PrintFeedbackMessage(feedbackFormURL)
-		}
-		os.Exit(0)
-	}()
 }
 
 func handleClient(client net.Conn, local net.Conn) {
@@ -201,8 +179,8 @@ func startRemoteForwardServer(serverSSHConnHTTPS *ssh.Client) net.Listener {
 	return listenerHTTPSOverSSH
 }
 
-func parsePublicKey(terminalState *terminal.State, identityFile string) (ssh.AuthMethod, ssh.PublicKey) {
-	publicKeyAuthMethod, publicKey, err := keys.ParsePublicKey(terminalState, identityFile)
+func parsePublicKey(identityFile string) (ssh.AuthMethod, ssh.PublicKey) {
+	publicKeyAuthMethod, publicKey, err := keys.ParsePublicKey(identityFile)
 	if err != nil {
 		communication.LoadingFailure()
 		log.Fatal().Err(err).Msg("No public key available")
@@ -264,7 +242,7 @@ func listenOnRemoteEndpoint(serverSSHConnHTTPS *ssh.Client) net.Listener {
 
 // ForwardPort is used to forward external URL to locally available port
 func ForwardPort(config lm.ExposeHttpConfig) {
-	setupCloseHandler(config.Display.FeedbackFormURL)
+	closehandler.SetupCloseHandler()
 	communication.PrintWelcomeMessage()
 
 	protocol := "http"
@@ -277,7 +255,7 @@ func ForwardPort(config lm.ExposeHttpConfig) {
 		Port:     config.Local.Port,
 	}
 
-	publicKeyAuthMethod, publicKey := parsePublicKey(terminalState, config.Remote.IdentityFile)
+	publicKeyAuthMethod, publicKey := parsePublicKey(config.Remote.IdentityFile)
 	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID)
 	server := createTLSReverseProxy(localEndpoint, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword)
 	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, localEndpoint.URI(), []string{"https"})
@@ -285,10 +263,10 @@ func ForwardPort(config lm.ExposeHttpConfig) {
 
 // ForwardDirectory is used to expose local directory via HTTP (download only)
 func ForwardDirectory(config lm.ExposeDirectoryConfig) {
-	setupCloseHandler(config.Display.FeedbackFormURL)
+	closehandler.SetupCloseHandler()
 	communication.PrintWelcomeMessage()
 
-	publicKeyAuthMethod, publicKey := parsePublicKey(terminalState, config.Remote.IdentityFile)
+	publicKeyAuthMethod, publicKey := parsePublicKey(config.Remote.IdentityFile)
 	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID)
 	server := getStaticFileServer(config.Local.Path, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword)
 
@@ -297,10 +275,10 @@ func ForwardDirectory(config lm.ExposeDirectoryConfig) {
 
 // ForwardDirectoryViaWebdav is used to expose local directory via Webdav (upload and download)
 func ForwardDirectoryViaWebdav(config lm.ExposeWebdavConfig) {
-	setupCloseHandler(config.Display.FeedbackFormURL)
+	closehandler.SetupCloseHandler()
 	communication.PrintWelcomeMessage()
 
-	publicKeyAuthMethod, publicKey := parsePublicKey(terminalState, config.Remote.IdentityFile)
+	publicKeyAuthMethod, publicKey := parsePublicKey(config.Remote.IdentityFile)
 	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID)
 	server := getWebdavServer(config.Local.Path, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword)
 
@@ -354,7 +332,7 @@ func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs, displayOptions lm.Displ
 			log.Warn().Err(err).Msg("Failed to accept connection over HTTPS")
 			continue
 		}
-		successfulConnectionOccured = true
+		closehandler.SuccessfulConnectionOccured()
 		go func() {
 			log.Info().Msg("Succeeded to accept connection over HTTPS")
 			local, err := net.Dial("tcp", localListenerEndpoint.URI())
