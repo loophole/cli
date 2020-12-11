@@ -1,6 +1,6 @@
 package models
 
-// ExposeDirectoryConfig represent loophole configuration when directory is exposed
+// ExposeDirectoryConfig represents loophole configuration when directory is exposed
 type ExposeDirectoryConfig struct {
 	Local   LocalDirectorySpecs
 	Remote  RemoteEndpointSpecs

@@ -12,12 +12,14 @@ import (
 	"github.com/loophole/cli/internal/pkg/cache"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/net/webdav"
 )
 
 type ServerBuilder interface {
 	WithHostname(string) ServerBuilder
 	Proxy() ProxyServerBuilder
 	ServeStatic() StaticServerBuilder
+	ServeWebdav() WebdavServerBuilder
 }
 
 type serverBuilder struct {
@@ -37,6 +39,11 @@ func (sb *serverBuilder) Proxy() ProxyServerBuilder {
 
 func (sb *serverBuilder) ServeStatic() StaticServerBuilder {
 	return &staticServerBuilder{
+		serverBuilder: sb,
+	}
+}
+func (sb *serverBuilder) ServeWebdav() WebdavServerBuilder {
+	return &webdavServerBuilder{
 		serverBuilder: sb,
 	}
 }
@@ -140,6 +147,61 @@ func (ssb *staticServerBuilder) Build() (*http.Server, error) {
 		server = &http.Server{
 			Handler:   fs,
 			TLSConfig: getTLSConfig(ssb.serverBuilder.siteID),
+		}
+	}
+
+	return server, nil
+}
+
+// WebdavServerBuilder is used to create server which expose local directory
+type WebdavServerBuilder interface {
+	FromDirectory(string) WebdavServerBuilder
+	WithBasicAuth(string, string) WebdavServerBuilder
+	Build() (*http.Server, error)
+}
+type webdavServerBuilder struct {
+	serverBuilder     *serverBuilder
+	directory         string
+	basicAuthEnabled  bool
+	basicAuthUsername string
+	basicAuthPassword string
+}
+
+func (wsb *webdavServerBuilder) FromDirectory(directory string) WebdavServerBuilder {
+	wsb.directory = directory
+	return wsb
+}
+
+func (wsb *webdavServerBuilder) WithBasicAuth(username string, password string) WebdavServerBuilder {
+	wsb.basicAuthEnabled = true
+	wsb.basicAuthUsername = username
+	wsb.basicAuthPassword = password
+	return wsb
+}
+
+func (wsb *webdavServerBuilder) Build() (*http.Server, error) {
+	wdHandler := &webdav.Handler{
+		Prefix:     "/",
+		FileSystem: webdav.Dir(wsb.directory),
+		LockSystem: webdav.NewMemLS(),
+	}
+
+	var server *http.Server
+
+	if wsb.basicAuthEnabled {
+		handler, err := getBasicAuthHandler(wsb.serverBuilder.siteID, wsb.basicAuthUsername, wsb.basicAuthPassword, wdHandler.ServeHTTP)
+		if err != nil {
+			return nil, err
+		}
+
+		server = &http.Server{
+			Handler:   handler,
+			TLSConfig: getTLSConfig(wsb.serverBuilder.siteID),
+		}
+	} else {
+		server = &http.Server{
+			Handler:   wdHandler,
+			TLSConfig: getTLSConfig(wsb.serverBuilder.siteID),
 		}
 	}
 
