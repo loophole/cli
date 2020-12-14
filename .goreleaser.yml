@@ -13,7 +13,6 @@ builds:
   binary: loophole
   goos:
     - linux
-    - darwin
     - windows
   goarch:
     - 386
@@ -29,10 +28,26 @@ builds:
   flags:
   - -tags=skippkger
 
-- id: loophole-desktop
-  binary: loophole-desktop
+- id: loophole-cli-macos
+  binary: loophole
   goos:
     - darwin
+  goarch:
+    - amd64
+  goarm:
+    - 6
+    - 7
+  mod_timestamp: "{{ .CommitTimestamp }}"
+  ldflags:
+    - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}}
+  flags:
+  - -tags=skippkger
+  hooks:
+    post: gon gon.hcl
+
+- id: loophole-desktop-linux
+  binary: loophole-desktop
+  goos:
     - linux
   goarch:
     - amd64
@@ -42,6 +57,20 @@ builds:
     - -s -w -X config.version={{.Version}} -X config.commit={{.Commit}}
   flags:
   - -tags=desktop
+
+- id: loophole-desktop-macos
+  binary: loophole-desktop
+  goos:
+    - darwin
+  goarch:
+    - amd64
+  mod_timestamp: "{{ .CommitTimestamp }}"
+  ldflags:
+    - -s -w -X config.version={{.Version}} -X config.commit={{.Commit}}
+  flags:
+  - -tags=desktop
+  hooks:
+    post: gon gon.hcl
 
 - id: loophole-desktop-win
   binary: loophole-desktop

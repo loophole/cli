@@ -8,7 +8,7 @@ on:
 
 jobs:
   goreleaser:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -33,6 +33,12 @@ jobs:
 
       - name: Get pkger
         run: go get -u github.com/markbates/pkger/cmd/pkger
+
+      - name: Import Apple Signing Certificate
+        uses: apple-actions/import-codesign-certs@v1
+        with: 
+          p12-file-base64: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 }}
+          p12-password: ${{ secrets.CERTIFICATES_P12_PASSWORD }}
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
