@@ -13,11 +13,8 @@ import (
 var successfulConnectionOccured bool = false
 var terminalState *terminal.State = &terminal.State{}
 
-//FeedbackFormURL contains the link to the feedbackform
-var FeedbackFormURL string = "https://forms.gle/K9ga7FZB3deaffnV7"
-
 //SetupCloseHandler ensures that CTRL+C inputs are properly processed, restoring the terminal state from not displaying entered characters where necessary
-func SetupCloseHandler() {
+func SetupCloseHandler(feedbackFormURL string) {
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	terminalState, err := terminal.GetState(int(os.Stdin.Fd()))
@@ -32,7 +29,7 @@ func SetupCloseHandler() {
 		}
 		communication.PrintGoodbyeMessage()
 		if successfulConnectionOccured {
-			communication.PrintFeedbackMessage(FeedbackFormURL)
+			communication.PrintFeedbackMessage(feedbackFormURL)
 		}
 		os.Exit(0)
 	}()

@@ -242,7 +242,6 @@ func listenOnRemoteEndpoint(serverSSHConnHTTPS *ssh.Client) net.Listener {
 
 // ForwardPort is used to forward external URL to locally available port
 func ForwardPort(config lm.ExposeHttpConfig) {
-	closehandler.SetupCloseHandler()
 	communication.PrintWelcomeMessage()
 
 	protocol := "http"
@@ -263,7 +262,6 @@ func ForwardPort(config lm.ExposeHttpConfig) {
 
 // ForwardDirectory is used to expose local directory via HTTP (download only)
 func ForwardDirectory(config lm.ExposeDirectoryConfig) {
-	closehandler.SetupCloseHandler()
 	communication.PrintWelcomeMessage()
 
 	publicKeyAuthMethod, publicKey := parsePublicKey(config.Remote.IdentityFile)

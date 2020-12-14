@@ -11,7 +11,6 @@ import (
 	"net"
 	"os"
 
-	"github.com/loophole/cli/internal/pkg/closehandler"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/crypto/ssh/terminal"
@@ -19,7 +18,6 @@ import (
 
 //ParsePublicKey retrieves an ssh.AuthMethod and the related PublicKey
 func ParsePublicKey(file string) (ssh.AuthMethod, ssh.PublicKey, error) {
-	closehandler.SetupCloseHandler()
 	privateKey, err := ioutil.ReadFile(file)
 
 	var pathError *os.PathError
