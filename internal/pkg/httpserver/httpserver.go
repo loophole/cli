@@ -15,6 +15,10 @@ import (
 	"golang.org/x/net/webdav"
 )
 
+const (
+	logoURL = "https://raw.githubusercontent.com/loophole/website/master/static/img/logo.png"
+)
+
 type ServerBuilder interface {
 	WithHostname(string) ServerBuilder
 	Proxy() ProxyServerBuilder
@@ -52,14 +56,16 @@ func (sb *serverBuilder) ServeWebdav() WebdavServerBuilder {
 type ProxyServerBuilder interface {
 	ToEndpoint(lm.Endpoint) ProxyServerBuilder
 	WithBasicAuth(string, string) ProxyServerBuilder
+	DisableProxyErrorPage() ProxyServerBuilder
 	Build() (*http.Server, error)
 }
 type proxyServerBuilder struct {
-	serverBuilder     *serverBuilder
-	endpoint          lm.Endpoint
-	basicAuthEnabled  bool
-	basicAuthUsername string
-	basicAuthPassword string
+	serverBuilder         *serverBuilder
+	endpoint              lm.Endpoint
+	basicAuthEnabled      bool
+	basicAuthUsername     string
+	basicAuthPassword     string
+	disableProxyErrorPage bool
 }
 
 func (psb *proxyServerBuilder) ToEndpoint(endpoint lm.Endpoint) ProxyServerBuilder {
@@ -74,11 +80,19 @@ func (psb *proxyServerBuilder) WithBasicAuth(username string, password string) P
 	return psb
 }
 
+func (psb *proxyServerBuilder) DisableProxyErrorPage() ProxyServerBuilder {
+	psb.disableProxyErrorPage = true
+	return psb
+}
+
 func (psb *proxyServerBuilder) Build() (*http.Server, error) {
 	proxy := httputil.NewSingleHostReverseProxy(&url.URL{
 		Scheme: psb.endpoint.Protocol,
 		Host:   psb.endpoint.Hostname(),
 	})
+	if !psb.disableProxyErrorPage {
+		proxy.ErrorHandler = proxyErrorHandler
+	}
 
 	var server *http.Server
 
@@ -243,4 +257,8 @@ func getBasicAuthSecretParser(username string, hashedPassword string) auth.Secre
 		}
 		return ""
 	}
+}
+
+func proxyErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
+	w.Write([]byte(fmt.Sprintf(proxyErrorTemplate, logoURL, err.Error())))
 }

@@ -51,6 +51,7 @@ To expose port running on some local host e.g. 192.168.1.20 use 'loophole http <
 func init() {
 	initServeCommand(httpCmd)
 	localEndpointSpecs.HTTPS = false
+	httpCmd.Flags().BoolVar(&displayOptions.DisableProxyErrorPage, "disable-proxy-error-page", false, "disable proxy error page and return 502 when backend is not available")
 
 	rootCmd.AddCommand(httpCmd)
 }

@@ -107,7 +107,7 @@ func connectViaSSH(gatewayEndpoint lm.Endpoint, username string, authMethod ssh.
 	return serverSSHConnHTTPS
 }
 
-func createTLSReverseProxy(localEndpoint lm.Endpoint, siteID string, basicAuthUsername string, basicAuthPassword string) *http.Server {
+func createTLSReverseProxy(localEndpoint lm.Endpoint, siteID string, basicAuthUsername string, basicAuthPassword string, displayOptions lm.DisplayOptions) *http.Server {
 	communication.StartLoading("Starting local TLS proxy server")
 	serverBuilder := httpserver.New().
 		WithHostname(siteID).
@@ -117,6 +117,10 @@ func createTLSReverseProxy(localEndpoint lm.Endpoint, siteID string, basicAuthUs
 	if basicAuthUsername != "" && basicAuthPassword != "" {
 		serverBuilder = serverBuilder.
 			WithBasicAuth(basicAuthUsername, basicAuthPassword)
+	}
+	if displayOptions.DisableProxyErrorPage {
+		serverBuilder = serverBuilder.
+			DisableProxyErrorPage()
 	}
 
 	if el := log.Debug(); el.Enabled() {
@@ -256,7 +260,7 @@ func ForwardPort(config lm.ExposeHttpConfig) {
 
 	publicKeyAuthMethod, publicKey := parsePublicKey(config.Remote.IdentityFile)
 	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID)
-	server := createTLSReverseProxy(localEndpoint, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword)
+	server := createTLSReverseProxy(localEndpoint, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword, config.Display)
 	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, localEndpoint.URI(), []string{"https"})
 }
 
