@@ -52,7 +52,7 @@ func parseBasicAuthFlags(flagset *pflag.FlagSet) error {
 	})
 
 	if usernameProvided && !passwordProvided {
-		fmt.Print("Enter basic auth password:")
+		fmt.Print("Enter basic auth password: ")
 
 		password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {

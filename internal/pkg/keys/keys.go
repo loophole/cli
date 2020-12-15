@@ -17,7 +17,7 @@ import (
 )
 
 //ParsePublicKey retrieves an ssh.AuthMethod and the related PublicKey
-func ParsePublicKey(terminalState *terminal.State, file string) (ssh.AuthMethod, ssh.PublicKey, error) {
+func ParsePublicKey(file string) (ssh.AuthMethod, ssh.PublicKey, error) {
 	privateKey, err := ioutil.ReadFile(file)
 
 	var pathError *os.PathError
@@ -55,12 +55,7 @@ func ParsePublicKey(terminalState *terminal.State, file string) (ssh.AuthMethod,
 
 			signer, err = getSignerFromSSHAgent(publicKey)
 			if err != nil {
-				fmt.Print("Enter SSH password:")
-				terminalState, err = terminal.GetState(int(os.Stdin.Fd()))
-				if err != nil {
-					return nil, nil, err
-				}
-				terminalState = nil
+				fmt.Print("Enter SSH password: ")
 
 				password, _ := terminal.ReadPassword(int(os.Stdin.Fd()))
 				fmt.Println()

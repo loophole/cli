@@ -8,6 +8,7 @@ import (
 
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/cache"
+	"github.com/loophole/cli/internal/pkg/closehandler"
 	"github.com/mattn/go-colorable"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -30,7 +31,7 @@ func init() {
 	cobra.OnInitialize(initLogger)
 
 	displayOptions.FeedbackFormURL = "https://forms.gle/K9ga7FZB3deaffnV7"
-
+	closehandler.SetupCloseHandler(displayOptions.FeedbackFormURL)
 	rootCmd.PersistentFlags().BoolVarP(&displayOptions.Verbose, "verbose", "v", false, "verbose output")
 }
 

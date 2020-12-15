@@ -43,6 +43,9 @@ To expose port running on some local host e.g. 192.168.1.20 use 'loophole http <
 		}
 		return nil
 	},
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		return parseBasicAuthFlags(cmd.Flags())
+	},
 }
 
 func init() {
