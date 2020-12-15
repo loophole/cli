@@ -273,7 +273,6 @@ func ForwardDirectory(config lm.ExposeDirectoryConfig) {
 
 // ForwardDirectoryViaWebdav is used to expose local directory via Webdav (upload and download)
 func ForwardDirectoryViaWebdav(config lm.ExposeWebdavConfig) {
-	closehandler.SetupCloseHandler()
 	communication.PrintWelcomeMessage()
 
 	publicKeyAuthMethod, publicKey := parsePublicKey(config.Remote.IdentityFile)

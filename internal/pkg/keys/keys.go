@@ -55,7 +55,7 @@ func ParsePublicKey(file string) (ssh.AuthMethod, ssh.PublicKey, error) {
 
 			signer, err = getSignerFromSSHAgent(publicKey)
 			if err != nil {
-				fmt.Print("Enter SSH password:")
+				fmt.Print("Enter SSH password: ")
 
 				password, _ := terminal.ReadPassword(int(os.Stdin.Fd()))
 				fmt.Println()
