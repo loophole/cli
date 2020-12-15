@@ -279,7 +279,7 @@ func ForwardPort(config lm.ExposeHttpConfig) {
 	publicKeyAuthMethod, publicKey := parsePublicKey(terminalState, config.Remote.IdentityFile)
 	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID)
 	server := createTLSReverseProxy(localEndpoint, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword)
-	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, localEndpoint.URI())
+	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, localEndpoint.URI(), []string{"https"})
 }
 
 // ForwardDirectory is used to expose local directory via HTTP (download only)
@@ -291,7 +291,7 @@ func ForwardDirectory(config lm.ExposeDirectoryConfig) {
 	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID)
 	server := getStaticFileServer(config.Local.Path, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword)
 
-	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, config.Local.Path)
+	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, config.Local.Path, []string{"https"})
 }
 
 // ForwardDirectoryViaWebdav is used to expose local directory via Webdav (upload and download)
@@ -303,10 +303,12 @@ func ForwardDirectoryViaWebdav(config lm.ExposeWebdavConfig) {
 	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID)
 	server := getWebdavServer(config.Local.Path, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword)
 
-	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, config.Local.Path)
+	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, config.Local.Path, []string{"https", "davs", "webdav"})
 }
 
-func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs, displayOptions lm.DisplayOptions, authMethod ssh.AuthMethod, siteID string, server *http.Server, localEndpoint string) {
+func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs, displayOptions lm.DisplayOptions,
+	authMethod ssh.AuthMethod, siteID string, server *http.Server, localEndpoint string,
+	protocols []string) {
 	localListenerEndpoint := startLocalHTTPServer(server)
 
 	serverSSHConnHTTPS := connectViaSSH(remoteEndpointSpecs.GatewayEndpoint, siteID, authMethod)
@@ -314,9 +316,7 @@ func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs, displayOptions lm.Displ
 	listenerHTTPSOverSSH := listenOnRemoteEndpoint(serverSSHConnHTTPS)
 	defer listenerHTTPSOverSSH.Close()
 
-	siteAddr := fmt.Sprintf("https://%s.loophole.host", siteID)
-
-	communication.PrintTunnelSuccessMessage(siteAddr, localEndpoint, displayOptions.QR)
+	communication.PrintTunnelSuccessMessage(siteID, protocols, localEndpoint, displayOptions.QR)
 
 	for {
 		client, err := listenerHTTPSOverSSH.Accept()

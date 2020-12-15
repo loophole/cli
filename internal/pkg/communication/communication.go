@@ -21,19 +21,37 @@ func PrintWelcomeMessage() {
 	NewLine()
 }
 
-func PrintTunnelSuccessMessage(siteAddr string, localAddr string, displayQR bool) {
+func PrintTunnelSuccessMessage(siteID string, protocols []string, localAddr string, displayQR bool) {
 	NewLine()
-	fmt.Fprint(colorableOutput, "Forwarding ")
-	fmt.Fprint(colorableOutput, aurora.Green(siteAddr))
-	fmt.Fprint(colorableOutput, " -> ")
-	fmt.Fprint(colorableOutput, aurora.Green(localAddr))
+
+	if len(protocols) < 1 {
+		protocols = []string{"https"}
+	}
+
+	for _, protocol := range protocols {
+		NewLine()
+		siteAddr := fmt.Sprintf("%s://%s.loophole.host", protocol, siteID)
+		fmt.Fprint(colorableOutput, "Forwarding ")
+		fmt.Fprint(colorableOutput, aurora.Green(siteAddr))
+		fmt.Fprint(colorableOutput, " -> ")
+		fmt.Fprint(colorableOutput, aurora.Green(localAddr))
+	}
+
 	if displayQR {
 		NewLine()
 		NewLine()
 		Write("Scan the below QR code to open the site:")
 		NewLine()
-		QRCode(siteAddr)
+		QRCode(fmt.Sprintf("%s://%s.loophole.host", protocols[0], siteID))
 	}
+
+	if len(protocols) > 1 {
+		NewLine()
+		NewLine()
+		fmt.Fprint(colorableOutput, "Choose the protocol suitable for your target OS and share it")
+		NewLine()
+	}
+
 	NewLine()
 	WriteItalic("TLS Certificate will be obtained with first request to the above address, therefore first execution may be slower")
 	NewLine()
