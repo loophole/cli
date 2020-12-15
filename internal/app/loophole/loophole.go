@@ -15,6 +15,7 @@ import (
 	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/loophole/cli/internal/pkg/httpserver"
 	"github.com/loophole/cli/internal/pkg/keys"
+	"github.com/loophole/cli/internal/pkg/urlmaker"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
@@ -315,6 +316,27 @@ func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs, displayOptions lm.Displ
 	defer serverSSHConnHTTPS.Close()
 	listenerHTTPSOverSSH := listenOnRemoteEndpoint(serverSSHConnHTTPS)
 	defer listenerHTTPSOverSSH.Close()
+
+	go func() {
+		log.Info().Msg("Issuing request to provision certificate")
+		var netTransport = &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout: 30 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout: 30 * time.Second,
+		}
+		var netClient = &http.Client{
+			Timeout:   time.Second * 30,
+			Transport: netTransport,
+		}
+		_, err := netClient.Get(urlmaker.GetSiteUrl("https", siteID))
+
+		if err != nil {
+			log.Error().Msg("TLS Certificate failed to provision. Will be obtained with first request made by any client, therefore first execution may be slower")
+		} else {
+			log.Info().Msg("TLS Certificate successfully provisioned")
+		}
+	}()
 
 	communication.PrintTunnelSuccessMessage(siteID, protocols, localEndpoint, displayOptions.QR)
 

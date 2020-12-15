@@ -6,6 +6,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/logrusorgru/aurora"
+	"github.com/loophole/cli/internal/pkg/urlmaker"
 	"github.com/mattn/go-colorable"
 	"github.com/mdp/qrterminal"
 	"github.com/rs/zerolog/log"
@@ -30,7 +31,7 @@ func PrintTunnelSuccessMessage(siteID string, protocols []string, localAddr stri
 
 	for _, protocol := range protocols {
 		NewLine()
-		siteAddr := fmt.Sprintf("%s://%s.loophole.host", protocol, siteID)
+		siteAddr := urlmaker.GetSiteUrl(protocol, siteID)
 		fmt.Fprint(colorableOutput, "Forwarding ")
 		fmt.Fprint(colorableOutput, aurora.Green(siteAddr))
 		fmt.Fprint(colorableOutput, " -> ")
@@ -42,7 +43,7 @@ func PrintTunnelSuccessMessage(siteID string, protocols []string, localAddr stri
 		NewLine()
 		Write("Scan the below QR code to open the site:")
 		NewLine()
-		QRCode(fmt.Sprintf("%s://%s.loophole.host", protocols[0], siteID))
+		QRCode(urlmaker.GetSiteUrl(protocols[0], siteID))
 	}
 
 	if len(protocols) > 1 {
@@ -52,8 +53,6 @@ func PrintTunnelSuccessMessage(siteID string, protocols []string, localAddr stri
 		NewLine()
 	}
 
-	NewLine()
-	WriteItalic("TLS Certificate will be obtained with first request to the above address, therefore first execution may be slower")
 	NewLine()
 	WriteCyan("Press CTRL + C to stop the service")
 	NewLine()
