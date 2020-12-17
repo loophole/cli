@@ -53,9 +53,9 @@ func handleClient(client net.Conn, local net.Conn) {
 	<-chDone
 }
 
-func registerDomain(apiURL string, publicKey *ssh.PublicKey, requestedSiteID string) string {
+func registerDomain(apiURL string, publicKey *ssh.PublicKey, requestedSiteID, version string) string {
 	communication.StartLoading("Registering your domain...")
-	siteID, err := apiclient.RegisterSite(apiURL, *publicKey, requestedSiteID)
+	siteID, err := apiclient.RegisterSite(apiURL, *publicKey, requestedSiteID, version)
 	if err != nil {
 		communication.LoadingFailure()
 		if requestErr, ok := err.(apiclient.RequestError); ok {
@@ -259,7 +259,7 @@ func ForwardPort(config lm.ExposeHttpConfig) {
 	}
 
 	publicKeyAuthMethod, publicKey := parsePublicKey(config.Remote.IdentityFile)
-	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID)
+	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID, config.Display.Version)
 	server := createTLSReverseProxy(localEndpoint, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword, config.Display)
 	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, localEndpoint.URI(), []string{"https"})
 }
@@ -269,7 +269,7 @@ func ForwardDirectory(config lm.ExposeDirectoryConfig) {
 	communication.PrintWelcomeMessage()
 
 	publicKeyAuthMethod, publicKey := parsePublicKey(config.Remote.IdentityFile)
-	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID)
+	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID, config.Display.Version)
 	server := getStaticFileServer(config.Local.Path, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword)
 
 	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, config.Local.Path, []string{"https"})
@@ -280,7 +280,7 @@ func ForwardDirectoryViaWebdav(config lm.ExposeWebdavConfig) {
 	communication.PrintWelcomeMessage()
 
 	publicKeyAuthMethod, publicKey := parsePublicKey(config.Remote.IdentityFile)
-	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID)
+	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID, config.Display.Version)
 	server := getWebdavServer(config.Local.Path, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword)
 
 	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, config.Local.Path, []string{"https", "davs", "webdav"})
@@ -308,7 +308,7 @@ func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs, displayOptions lm.Displ
 			Timeout:   time.Second * 30,
 			Transport: netTransport,
 		}
-		_, err := netClient.Get(urlmaker.GetSiteUrl("https", siteID))
+		_, err := netClient.Get(urlmaker.GetSiteURL("https", siteID))
 
 		if err != nil {
 			log.Error().Msg("TLS Certificate failed to provision. Will be obtained with first request made by any client, therefore first execution may be slower")

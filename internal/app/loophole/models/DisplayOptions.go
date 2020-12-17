@@ -6,4 +6,5 @@ type DisplayOptions struct {
 	QR                    bool
 	FeedbackFormURL       string
 	DisableProxyErrorPage bool
+	Version               string
 }

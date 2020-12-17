@@ -10,6 +10,7 @@ import (
 	auth "github.com/abbot/go-http-auth"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/cache"
+	"github.com/loophole/cli/internal/pkg/urlmaker"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/net/webdav"
@@ -230,7 +231,7 @@ func New() ServerBuilder {
 func getTLSConfig(siteID string) *tls.Config {
 	certManager := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
-		HostPolicy: autocert.HostWhitelist(fmt.Sprintf("%s.loophole.host", siteID)),
+		HostPolicy: autocert.HostWhitelist(urlmaker.GetSiteFQDN(siteID)),
 		Cache:      autocert.DirCache(cache.GetLocalStorageDir("certs")),
 		Email:      fmt.Sprintf("lh-%s@main.dev", siteID),
 	}
@@ -246,7 +247,7 @@ func getBasicAuthHandler(siteID string, username string, password string, handle
 
 	secret := getBasicAuthSecretParser(username, string(hashedPassword))
 
-	authenticator := auth.NewBasicAuthenticator(fmt.Sprintf("%s.loophole.host", siteID), secret)
+	authenticator := auth.NewBasicAuthenticator(urlmaker.GetSiteFQDN(siteID), secret)
 	return auth.JustCheck(authenticator, handler), nil
 }
 

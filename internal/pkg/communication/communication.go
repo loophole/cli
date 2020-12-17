@@ -31,7 +31,7 @@ func PrintTunnelSuccessMessage(siteID string, protocols []string, localAddr stri
 
 	for _, protocol := range protocols {
 		NewLine()
-		siteAddr := urlmaker.GetSiteUrl(protocol, siteID)
+		siteAddr := urlmaker.GetSiteURL(protocol, siteID)
 		fmt.Fprint(colorableOutput, "Forwarding ")
 		fmt.Fprint(colorableOutput, aurora.Green(siteAddr))
 		fmt.Fprint(colorableOutput, " -> ")
@@ -43,7 +43,7 @@ func PrintTunnelSuccessMessage(siteID string, protocols []string, localAddr stri
 		NewLine()
 		Write("Scan the below QR code to open the site:")
 		NewLine()
-		QRCode(urlmaker.GetSiteUrl(protocols[0], siteID))
+		QRCode(urlmaker.GetSiteURL(protocols[0], siteID))
 	}
 
 	if len(protocols) > 1 {
