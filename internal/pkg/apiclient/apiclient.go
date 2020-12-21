@@ -5,10 +5,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
+	"runtime"
+	"time"
 
 	"github.com/loophole/cli/internal/pkg/token"
+	"github.com/loophole/cli/internal/pkg/urlmaker"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/ssh"
 )
@@ -40,7 +44,7 @@ var getAccessToken = token.GetAccessToken
 var tokenWasRefreshed = false
 
 // RegisterSite is a funtion used to obtain site id and register keys in the gateway
-func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID string) (string, error) {
+func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID, version string) (string, error) {
 	publicKeyString := publicKey.Type() + " " + base64.StdEncoding.EncodeToString(publicKey.Marshal())
 
 	if !isTokenSaved() {
@@ -71,15 +75,29 @@ func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID string) (string
 	if err != nil {
 		return "", err
 	}
+
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/register-site", apiURL), bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", err
 	}
 
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", fmt.Sprintf("loophole/%s (%s/%s) %s", version, runtime.GOOS, runtime.GOARCH, urlmaker.HostURL))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
 
-	resp, err := http.DefaultClient.Do(req)
+	var netTransport = &http.Transport{
+		Dial: (&net.Dialer{
+			Timeout: 5 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout: 5 * time.Second,
+	}
+	var netClient = &http.Client{
+		Timeout:   time.Second * 30,
+		Transport: netTransport,
+	}
+
+	resp, err := netClient.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -112,7 +130,7 @@ func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID string) (string
 					}
 				}
 				tokenWasRefreshed = true
-				return RegisterSite(apiURL, publicKey, siteID)
+				return RegisterSite(apiURL, publicKey, siteID, version)
 			}
 			return "", RequestError{
 				Message:    "Authentication failed, try logging out and logging in again",
