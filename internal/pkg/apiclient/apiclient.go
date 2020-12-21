@@ -29,6 +29,7 @@ type ErrorResponse struct {
 	Error      string `json:"error"`
 }
 
+//RequestError defines the json format in which the error information regarding requests is returned
 type RequestError struct {
 	Message    string
 	Details    string
