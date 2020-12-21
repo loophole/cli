@@ -1,8 +1,8 @@
 package cmd
 
 import (
+	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/loophole/cli/internal/pkg/token"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -14,14 +14,14 @@ var logoutCmd = &cobra.Command{
 In regular scenario you should not need to use it, as tokens are getting refreshed automatically.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if !token.IsTokenSaved() {
-			log.Fatal().Msg("Not logged in, nothing to do")
+			communication.LogFatalMsg("Not logged in, nothing to do")
 		}
 
 		err := token.DeleteTokens()
 		if err != nil {
-			log.Fatal().Err(err).Msg("There as a problem logging out")
+			communication.LogFatalErr("There as a problem logging out", err)
 		}
-		log.Info().Msg("Logged out succesfully")
+		communication.LogInfo("Logged out succesfully")
 	},
 }
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/logrusorgru/aurora"
 	"github.com/loophole/cli/internal/pkg/cache"
+	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/rs/zerolog/log"
 )
 
@@ -51,7 +52,7 @@ func IsTokenSaved() bool {
 	if _, err := os.Stat(tokensLocation); os.IsNotExist(err) {
 		return false
 	} else if err != nil {
-		log.Fatal().Err(err).Msg("There was a problem reading tokens file")
+		communication.LogFatalErr("There was a problem reading tokens file", err)
 	}
 	return true
 }
@@ -96,7 +97,7 @@ func RegisterDevice() (*DeviceCodeSpec, error) {
 		return nil, fmt.Errorf("There was a problem decoding device token response body")
 	}
 
-	log.Info().Msg(fmt.Sprintf("Please open %s and use %s code to log in", aurora.Yellow(jsonResponseBody.VeritificationURI), aurora.Yellow(jsonResponseBody.UserCode)))
+	communication.LogInfo(fmt.Sprintf("Please open %s and use %s code to log in", aurora.Yellow(jsonResponseBody.VeritificationURI), aurora.Yellow(jsonResponseBody.UserCode)))
 
 	return &jsonResponseBody, nil
 }

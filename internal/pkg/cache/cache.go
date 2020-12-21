@@ -4,21 +4,21 @@ import (
 	"os"
 	"path"
 
+	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/mitchellh/go-homedir"
-	"github.com/rs/zerolog/log"
 )
 
 // GetLocalStorageDir returns local directory for loophole cache purposes
 func GetLocalStorageDir(directoryName string) string {
 	home, err := homedir.Dir()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error reading user home directory ")
+		communication.LogFatalErr("Error reading user home directory ", err)
 	}
 
 	dirName := path.Join(home, ".loophole", directoryName)
 	err = os.MkdirAll(dirName, os.ModePerm)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error creating local cache directory")
+		communication.LogFatalErr("Error creating local cache directory", err)
 	}
 	return dirName
 }
@@ -27,12 +27,12 @@ func GetLocalStorageDir(directoryName string) string {
 func GetLocalStorageFile(fileName string, directoryName string) string {
 	home, err := homedir.Dir()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error reading user home directory ")
+		communication.LogFatalErr("Error reading user home directory ", err)
 	}
 	dirName := path.Join(home, ".loophole", directoryName)
 	err = os.MkdirAll(dirName, os.ModePerm)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error creating local cache directory")
+		communication.LogFatalErr("Error creating local cache directory", err)
 	}
 
 	return path.Join(dirName, fileName)

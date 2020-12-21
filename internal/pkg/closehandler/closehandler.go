@@ -6,7 +6,6 @@ import (
 	"syscall"
 
 	"github.com/loophole/cli/internal/pkg/communication"
-	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -19,7 +18,7 @@ func SetupCloseHandler(feedbackFormURL string) {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	terminalState, err := terminal.GetState(int(os.Stdin.Fd()))
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error saving terminal state")
+		communication.LogFatalErr("Error saving terminal state", err)
 	}
 
 	go func() {
