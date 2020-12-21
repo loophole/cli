@@ -14,7 +14,7 @@ var successfulConnectionOccured bool = false
 var terminalState *term.State = &term.State{}
 
 // SetupCloseHandler ensures that CTRL+C inputs are properly processed, restoring the terminal state from not displaying entered characters where necessary
-func SetupCloseHandler(feedbackFormURL string) {
+func SetupCloseHandler(feedbackFormURL string) chan os.Signal {
 	var terminalState *term.State
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -35,4 +35,5 @@ func SetupCloseHandler(feedbackFormURL string) {
 		communication.ApplicationStop()
 		os.Exit(0)
 	}()
+	return c
 }

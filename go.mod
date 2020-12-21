@@ -3,6 +3,7 @@ module github.com/loophole/cli
 go 1.20
 
 require (
+	github.com/AlecAivazis/survey/v2 v2.2.4
 	github.com/abbot/go-http-auth v0.4.0
 	github.com/beevik/guid v0.0.0-20170504223318-d0ea8faecee0
 	github.com/blang/semver/v4 v4.0.0
