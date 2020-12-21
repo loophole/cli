@@ -5,6 +5,7 @@ package main
 import (
 	"github.com/loophole/cli/cmd"
 	"github.com/loophole/cli/config"
+	"github.com/loophole/cli/internal/pkg/closehandler"
 )
 
 var (
@@ -18,5 +19,6 @@ func main() {
 	config.Config.CommitHash = commit
 	config.Config.ClientMode = mode
 
-	cmd.Execute()
+	c := closehandler.SetupCloseHandler("https://forms.gle/K9ga7FZB3deaffnV7")
+	cmd.Execute(c)
 }
