@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/loophole/cli/internal/pkg/token"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -20,23 +20,23 @@ Running this command as not logged in user will prompt you to open URL and use t
 Running this command as logged in user will fail, in cae you want to relogin then you need to log out first`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if token.IsTokenSaved() {
-			log.Fatal().Msg(fmt.Sprintf("Already logged in, please use `%s account logout` first to re-login", os.Args[0]))
+			communication.LogFatalMsg(fmt.Sprintf("Already logged in, please use `%s account logout` first to re-login", os.Args[0]))
 			os.Exit(1)
 		}
 
 		deviceCodeSpec, err := token.RegisterDevice()
 		if err != nil {
-			log.Fatal().Err(err).Msg("Error obtaining device code")
+			communication.LogFatalErr("Error obtaining device code", err)
 		}
 		tokens, err := token.PollForToken(deviceCodeSpec.DeviceCode, deviceCodeSpec.Interval)
 		if err != nil {
-			log.Fatal().Err(err).Msg("Error obtaining token")
+			communication.LogFatalErr("Error obtaining token", err)
 		}
 		err = token.SaveToken(tokens)
 		if err != nil {
-			log.Fatal().Err(err).Msg("Error saving token")
+			communication.LogFatalErr("Error saving token", err)
 		}
-		log.Info().Msg("Logged in succesfully")
+		communication.LogInfo("Logged in successfully")
 	},
 }
 

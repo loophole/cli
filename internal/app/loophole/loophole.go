@@ -62,9 +62,9 @@ func registerDomain(apiURL string, publicKey *ssh.PublicKey, requestedSiteID, ve
 			log.Error().Int("status", requestErr.StatusCode).Msg("Request ended")
 			log.Error().Msg(requestErr.Message)
 			log.Error().Msg(fmt.Sprintf("Details: %s", requestErr.Details))
-			log.Fatal().Msg("Please fix the above issue and try again")
+			communication.LogFatalMsg("Please fix the above issue and try again")
 		} else {
-			log.Fatal().Err(err).Msg("Something unexpected happened, please let developers know")
+			communication.LogFatalErr("Something unexpected happened, please let developers know", err)
 		}
 	}
 	communication.LoadingSuccess()
@@ -88,7 +88,7 @@ func connectViaSSH(gatewayEndpoint lm.Endpoint, username string, authMethod ssh.
 		serverSSHConnHTTPS, err = ssh.Dial("tcp", gatewayEndpoint.URI(), sshConfigHTTPS)
 		if err != nil {
 			communication.LoadingFailure()
-			log.Info().Msg(fmt.Sprintf("SSH Connection failed, retrying in 10 seconds... (Attempt %d/%d)", i+1, sshRetries))
+			communication.LogInfo(fmt.Sprintf("SSH Connection failed, retrying in 10 seconds... (Attempt %d/%d)", i+1, sshRetries))
 			time.Sleep(10 * time.Second)
 		} else {
 			sshSuccess = true
@@ -97,7 +97,7 @@ func connectViaSSH(gatewayEndpoint lm.Endpoint, username string, authMethod ssh.
 	if !sshSuccess {
 		communication.WriteRed("An error occured while dialing into SSH. If your connection has been running for a while")
 		communication.WriteRed("this might be caused by the server shutting down your connection.")
-		log.Fatal().Err(err).Msg("Dialing SSH Gateway for HTTPS failed.")
+		communication.LogFatalErr("Dialing SSH Gateway for HTTPS failed.", err)
 	}
 	if el := log.Debug(); el.Enabled() {
 		fmt.Println()
@@ -131,7 +131,7 @@ func createTLSReverseProxy(localEndpoint lm.Endpoint, siteID string, basicAuthUs
 	server, err := serverBuilder.Build()
 	if err != nil {
 		communication.LoadingFailure()
-		log.Fatal().Err(err).Msg("Something went wrong while creating server")
+		communication.LogFatalErr("Something went wrong while creating server", err)
 	}
 	return server
 }
@@ -145,7 +145,7 @@ func startLocalHTTPServer(server *http.Server) *lm.Endpoint {
 	localListener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		communication.LoadingFailure()
-		log.Fatal().Err(err).Msg("Failed to listen on TLS proxy for HTTPS")
+		communication.LogFatalErr("Failed to listen on TLS proxy for HTTPS", err)
 	}
 	localListenerEndpoint := &lm.Endpoint{
 		Host: "127.0.0.1",
@@ -160,7 +160,7 @@ func startLocalHTTPServer(server *http.Server) *lm.Endpoint {
 		err := server.ServeTLS(localListener, "", "")
 		if err != nil {
 			communication.LoadingFailure()
-			log.Fatal().Msg("Failed to start TLS server")
+			communication.LogFatalMsg("Failed to start TLS server")
 		}
 	}()
 	if el := log.Debug(); el.Enabled() {
@@ -174,7 +174,7 @@ func startRemoteForwardServer(serverSSHConnHTTPS *ssh.Client) net.Listener {
 	listenerHTTPSOverSSH, err := serverSSHConnHTTPS.Listen("tcp", remoteEndpoint.URI())
 	if err != nil {
 		communication.LoadingFailure()
-		log.Fatal().Err(err).Msg("Listening on remote endpoint for HTTPS failed")
+		communication.LogFatalErr("Listening on remote endpoint for HTTPS failed", err)
 	}
 	if el := log.Debug(); el.Enabled() {
 		fmt.Println()
@@ -187,7 +187,7 @@ func parsePublicKey(identityFile string) (ssh.AuthMethod, ssh.PublicKey) {
 	publicKeyAuthMethod, publicKey, err := keys.ParsePublicKey(identityFile)
 	if err != nil {
 		communication.LoadingFailure()
-		log.Fatal().Err(err).Msg("No public key available")
+		communication.LogFatalErr("No public key available", err)
 	}
 
 	return publicKeyAuthMethod, publicKey
@@ -209,7 +209,7 @@ func getStaticFileServer(path string, siteID string, basicAuthUsername string, b
 	server, err := serverBuilder.Build()
 	if err != nil {
 		communication.LoadingFailure()
-		log.Fatal().Err(err).Msg("Something went wrong while creating server")
+		communication.LogFatalErr("Something went wrong while creating server", err)
 	}
 	return server
 }
@@ -230,7 +230,7 @@ func getWebdavServer(path string, siteID string, basicAuthUsername string, basic
 	server, err := serverBuilder.Build()
 	if err != nil {
 		communication.LoadingFailure()
-		log.Fatal().Err(err).Msg("Something went wrong while creating server")
+		communication.LogFatalErr("Something went wrong while creating server", err)
 	}
 	return server
 }
@@ -239,7 +239,7 @@ func listenOnRemoteEndpoint(serverSSHConnHTTPS *ssh.Client) net.Listener {
 	listenerHTTPSOverSSH, err := serverSSHConnHTTPS.Listen("tcp", remoteEndpoint.URI())
 	if err != nil {
 		communication.LoadingFailure()
-		log.Fatal().Err(err).Msg("Listening on remote endpoint for HTTPS failed")
+		communication.LogFatalErr("Listening on remote endpoint for HTTPS failed", err)
 	}
 	return listenerHTTPSOverSSH
 }
@@ -297,7 +297,7 @@ func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs, displayOptions lm.Displ
 	defer listenerHTTPSOverSSH.Close()
 
 	go func() {
-		log.Info().Msg("Issuing request to provision certificate")
+		communication.LogInfo("Issuing request to provision certificate")
 		var netTransport = &http.Transport{
 			Dial: (&net.Dialer{
 				Timeout: 30 * time.Second,
@@ -313,7 +313,7 @@ func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs, displayOptions lm.Displ
 		if err != nil {
 			log.Error().Msg("TLS Certificate failed to provision. Will be obtained with first request made by any client, therefore first execution may be slower")
 		} else {
-			log.Info().Msg("TLS Certificate successfully provisioned")
+			communication.LogInfo("TLS Certificate successfully provisioned")
 		}
 	}()
 
@@ -322,7 +322,7 @@ func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs, displayOptions lm.Displ
 	for {
 		client, err := listenerHTTPSOverSSH.Accept()
 		if err == io.EOF {
-			log.Info().Err(err).Msg("Connection dropped, reconnecting...")
+			communication.LogInfo(err.Error() + " Connection dropped, reconnecting...")
 			listenerHTTPSOverSSH.Close()
 			serverSSHConnHTTPS = connectViaSSH(remoteEndpointSpecs.GatewayEndpoint, siteID, authMethod)
 			defer serverSSHConnHTTPS.Close()
@@ -335,10 +335,10 @@ func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs, displayOptions lm.Displ
 		}
 		closehandler.SuccessfulConnectionOccured()
 		go func() {
-			log.Info().Msg("Succeeded to accept connection over HTTPS")
+			communication.LogInfo("Succeeded to accept connection over HTTPS")
 			local, err := net.Dial("tcp", localListenerEndpoint.URI())
 			if err != nil {
-				log.Fatal().Err(err).Msg("Dialing into local proxy for HTTPS failed")
+				communication.LogFatalErr("Dialing into local proxy for HTTPS failed", err)
 			}
 			if el := log.Debug(); el.Enabled() {
 				el.Msg("Dialing into local proxy for HTTPS succeeded")

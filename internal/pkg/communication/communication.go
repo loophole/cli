@@ -2,6 +2,7 @@ package communication
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -14,15 +15,19 @@ import (
 
 var colorableOutput = colorable.NewColorableStdout()
 var loader = spinner.New(spinner.CharSets[9], 100*time.Millisecond, spinner.WithWriter(colorableOutput))
+var MessageMutex sync.Mutex
 
 func PrintWelcomeMessage() {
+	MessageMutex.Lock()
 	fmt.Fprint(colorableOutput, aurora.Cyan("Loophole"))
 	fmt.Fprint(colorableOutput, aurora.Italic(" - End to end TLS encrypted TCP communication between you and your clients"))
 	NewLine()
 	NewLine()
+	MessageMutex.Unlock()
 }
 
 func PrintTunnelSuccessMessage(siteID string, protocols []string, localAddr string, displayQR bool) {
+	MessageMutex.Lock()
 	NewLine()
 
 	if len(protocols) < 1 {
@@ -59,15 +64,20 @@ func PrintTunnelSuccessMessage(siteID string, protocols []string, localAddr stri
 	Write("Logs:")
 
 	log.Info().Msg("Awaiting connections...")
+	MessageMutex.Unlock()
 }
 
 func PrintGoodbyeMessage() {
+	MessageMutex.Lock()
 	NewLine()
 	Write("Goodbye")
+	MessageMutex.Unlock()
 }
 
 func PrintFeedbackMessage(feedbackFormURL string) {
-	fmt.Println(aurora.Cyan(fmt.Sprintf("Thank you for using Loophole. Please give us your feedback via %s and help us improve our services.", feedbackFormURL)))
+	MessageMutex.Lock()
+	fmt.Fprintln(colorableOutput, aurora.Cyan(fmt.Sprintf("Thank you for using Loophole. Please give us your feedback via %s and help us improve our services.", feedbackFormURL)))
+	MessageMutex.Unlock()
 }
 
 func StartLoading(message string) {
@@ -75,7 +85,9 @@ func StartLoading(message string) {
 		loader.Prefix = fmt.Sprintf("%s ", message)
 		loader.Start()
 	} else {
+		MessageMutex.Lock()
 		Write(message)
+		MessageMutex.Unlock()
 	}
 }
 
@@ -91,6 +103,30 @@ func LoadingFailure() {
 		loader.FinalMSG = fmt.Sprintf("%s%s\n", loader.Prefix, aurora.Red("Error!"))
 		loader.Stop()
 	}
+}
+
+func LogInfo(message string) {
+	MessageMutex.Lock()
+	log.Info().Msg(message)
+	MessageMutex.Unlock()
+}
+
+func LogFatalErr(message string, err error) {
+	MessageMutex.Lock()
+	log.Fatal().Err(err).Msg(message)
+	MessageMutex.Unlock()
+}
+
+func LogFatalMsg(message string) {
+	MessageMutex.Lock()
+	log.Fatal().Msg(message)
+	MessageMutex.Unlock()
+}
+
+func LogDebug(message string) {
+	MessageMutex.Lock()
+	log.Debug().Msg(message)
+	MessageMutex.Unlock()
 }
 
 func NewLine() {
