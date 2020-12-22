@@ -76,7 +76,7 @@ func PrintGoodbyeMessage() {
 
 func PrintFeedbackMessage(feedbackFormURL string) {
 	MessageMutex.Lock()
-	fmt.Println(aurora.Cyan(fmt.Sprintf("Thank you for using Loophole. Please give us your feedback via %s and help us improve our services.", feedbackFormURL)))
+	fmt.Fprintln(colorableOutput, aurora.Cyan(fmt.Sprintf("Thank you for using Loophole. Please give us your feedback via %s and help us improve our services.", feedbackFormURL)))
 	MessageMutex.Unlock()
 }
 
