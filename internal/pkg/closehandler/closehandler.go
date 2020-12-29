@@ -2,11 +2,13 @@ package closehandler
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 
+	"github.com/loophole/cli/internal/pkg/cache"
 	"github.com/loophole/cli/internal/pkg/communication"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -32,6 +34,8 @@ func SetupCloseHandler(feedbackFormURL string) chan os.Signal {
 		communication.PrintGoodbyeMessage()
 		if interactiveArgs != "" {
 			communication.LogInfo(fmt.Sprintf("Next time, add the following to loophole to start a tunnel with the same settings: %s", interactiveArgs))
+			argFile := cache.GetLocalStorageFile("lastArgs", "logs")
+			ioutil.WriteFile(argFile, []byte(interactiveArgs), 0644)
 		}
 		if successfulConnectionOccured {
 			communication.PrintFeedbackMessage(feedbackFormURL)
