@@ -99,7 +99,7 @@ func (l *stdoutLogger) ApplicationStop() {
 	l.messageMutex.Lock()
 	defer l.messageMutex.Unlock()
 	l.divider()
-	fmt.Fprint(l.colorableOutput, "Goodbye")
+	fmt.Fprint(l.colorableOutput, "Goodbye\n")
 
 	fmt.Fprintln(l.colorableOutput, aurora.Cyan(fmt.Sprintf("Thank you for using Loophole. Please give us your feedback via %s and help us improve our services.", config.Config.FeedbackFormURL)))
 }
