@@ -5,7 +5,6 @@ import (
 	stdlog "log"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -44,18 +43,16 @@ func interactivePrompt() {
 	}
 	var portPrompt = []*survey.Question{
 		{
-			Name:      "port",
-			Prompt:    &survey.Input{Message: "Please enter the http port you want to expose: "},
-			Validate:  survey.Required,
-			Transform: survey.Title,
+			Name:     "port",
+			Prompt:   &survey.Input{Message: "Please enter the http port you want to expose: "},
+			Validate: survey.Required,
 		},
 	}
 	var pathPrompt = []*survey.Question{
 		{
-			Name:      "path",
-			Prompt:    &survey.Input{Message: "Please enter the path you want to expose: "},
-			Validate:  survey.Required,
-			Transform: survey.Title,
+			Name:     "path",
+			Prompt:   &survey.Input{Message: "Please enter the path you want to expose: "},
+			Validate: survey.Required,
 		},
 	}
 	logoutPrompt := &survey.Select{
@@ -79,7 +76,7 @@ func interactivePrompt() {
 		}
 		hostname := askHostname()
 		if hostname != "" {
-			arguments := []string{"http", strconv.Itoa(exposePort), "--hostname", strings.ToLower(hostname)}
+			arguments := []string{"http", strconv.Itoa(exposePort), "--hostname", hostname}
 			closehandler.SaveArguments(arguments)
 			cmd.SetArgs(arguments)
 		} else {
@@ -95,7 +92,7 @@ func interactivePrompt() {
 		}
 		hostname := askHostname()
 		if hostname != "" {
-			arguments := []string{"path", exposePath, "--hostname", strings.ToLower(hostname)}
+			arguments := []string{"path", exposePath, "--hostname", hostname}
 			closehandler.SaveArguments(arguments)
 			cmd.SetArgs(arguments)
 		} else {
@@ -111,7 +108,7 @@ func interactivePrompt() {
 		}
 		hostname := askHostname()
 		if hostname != "" {
-			arguments := []string{"webdav", exposePath, "--hostname", strings.ToLower(hostname)}
+			arguments := []string{"webdav", exposePath, "--hostname", hostname}
 			closehandler.SaveArguments(arguments)
 			cmd.SetArgs(arguments)
 		} else {
@@ -140,10 +137,9 @@ func askHostname() string {
 	}
 	var hostnamePrompt = []*survey.Question{
 		{
-			Name:      "hostname",
-			Prompt:    &survey.Input{Message: "Please enter the hostname you want to use: "},
-			Validate:  survey.Required,
-			Transform: survey.Title,
+			Name:     "hostname",
+			Prompt:   &survey.Input{Message: "Please enter the hostname you want to use: "},
+			Validate: survey.Required,
 		},
 	}
 	err := survey.AskOne(prompt, &res)
