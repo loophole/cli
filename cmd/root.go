@@ -3,11 +3,14 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	stdlog "log"
 	"os"
+	"regexp"
 	"strconv"
 	"time"
+	"unicode"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/loophole/cli/config"
@@ -51,16 +54,43 @@ func interactivePrompt() {
 	}
 	var portPrompt = []*survey.Question{
 		{
-			Name:     "port",
-			Prompt:   &survey.Input{Message: "Please enter the http port you want to expose: "},
-			Validate: survey.Required,
+			Name:   "port",
+			Prompt: &survey.Input{Message: "Please enter the http port you want to expose: "},
+			Validate: func(val interface{}) error {
+				if port, ok := val.(string); !ok {
+					return errors.New("enter a valid string")
+				} else { //else is necessary here to keep access to port
+					n, err := strconv.Atoi(port)
+					if err != nil {
+						return errors.New("port must be between 0-65535")
+					}
+					if (n < 0) || (n > 65535) {
+						return errors.New("port must be between 0-65535")
+					}
+				}
+
+				return nil
+			},
 		},
 	}
 	var pathPrompt = []*survey.Question{
 		{
-			Name:     "path",
-			Prompt:   &survey.Input{Message: "Please enter the path you want to expose: "},
-			Validate: survey.Required,
+			Name:   "path",
+			Prompt: &survey.Input{Message: "Please enter the path you want to expose: "},
+			Validate: func(val interface{}) error {
+				if path, ok := val.(string); !ok {
+					return errors.New("enter an existing path without any quotation marks")
+				} else { //else is necessary here to keep access to path
+					_, err := os.Stat(path)
+					if err == nil {
+						return nil
+					}
+					return errors.New("enter an existing path without any quotation marks")
+				}
+			},
+			Transform: survey.TransformString(func(ans string) string {
+				return fmt.Sprintf("'%s'", ans)
+			}),
 		},
 	}
 	logoutPrompt := &survey.Select{
@@ -123,13 +153,12 @@ func askBasicAuth() string {
 	res := ""
 	prompt := &survey.Select{
 		Message: "Do you want to secure your tunnel using a username and password?",
-		Options: []string{"Yes", "No"},
+		Options: []string{"No", "Yes"},
 	}
-	var hostnamePrompt = []*survey.Question{
+	var usernamePrompt = []*survey.Question{
 		{
-			Name:     "username",
-			Prompt:   &survey.Input{Message: "Please enter the username you want to use: "},
-			Validate: survey.Required,
+			Name:   "username",
+			Prompt: &survey.Input{Message: "Please enter the username you want to use: "}, //not asking for a password since it's already implemented in virtual-serve
 		},
 	}
 	err := survey.AskOne(prompt, &res)
@@ -137,7 +166,7 @@ func askBasicAuth() string {
 		signalChan <- nil
 	}
 	if res == "Yes" {
-		err = survey.Ask(hostnamePrompt, &res)
+		err = survey.Ask(usernamePrompt, &res)
 		if err != nil {
 			os.Exit(0)
 			return err.Error()
@@ -153,13 +182,20 @@ func askHostname() string {
 	res := ""
 	prompt := &survey.Select{
 		Message: "Do you want to use a custom hostname?",
-		Options: []string{"Yes", "No"},
+		Options: []string{"No", "Yes"},
 	}
 	var hostnamePrompt = []*survey.Question{
 		{
-			Name:     "hostname",
-			Prompt:   &survey.Input{Message: "Please enter the hostname you want to use: "},
-			Validate: survey.Required,
+			Name:   "hostname",
+			Prompt: &survey.Input{Message: "Please enter the hostname you want to use: "},
+			Validate: func(val interface{}) error {
+				var validChars = regexp.MustCompile(`^[a-z0-9]+$`).MatchString
+				if hostname, ok := val.(string); !ok || len(hostname) > 31 || len(hostname) < 6 || !validChars(hostname) || !unicode.IsLetter(rune(hostname[0])) {
+					return errors.New("hostname must be between 6-31 characters, may only contain lowercase letters and numbers and must start with a letter")
+				}
+
+				return nil
+			},
 		},
 	}
 	err := survey.AskOne(prompt, &res)
