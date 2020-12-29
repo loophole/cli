@@ -11,6 +11,7 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/cache"
+	"github.com/loophole/cli/internal/pkg/closehandler"
 	"github.com/mattn/go-colorable"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -78,9 +79,13 @@ func interactivePrompt() {
 		}
 		hostname := askHostname()
 		if hostname != "" {
-			cmd.SetArgs([]string{"http", strconv.Itoa(exposePort), "--hostname", strings.ToLower(hostname)})
+			arguments := []string{"http", strconv.Itoa(exposePort), "--hostname", strings.ToLower(hostname)}
+			closehandler.SaveArguments(arguments)
+			cmd.SetArgs(arguments)
 		} else {
-			cmd.SetArgs([]string{"http", strconv.Itoa(exposePort)})
+			arguments := []string{"http", strconv.Itoa(exposePort)}
+			closehandler.SaveArguments(arguments)
+			cmd.SetArgs(arguments)
 		}
 		cmd.Execute()
 	} else if res == "Expose a local path" {
@@ -90,9 +95,13 @@ func interactivePrompt() {
 		}
 		hostname := askHostname()
 		if hostname != "" {
-			cmd.SetArgs([]string{"path", exposePath, "--hostname", strings.ToLower(hostname)})
+			arguments := []string{"path", exposePath, "--hostname", strings.ToLower(hostname)}
+			closehandler.SaveArguments(arguments)
+			cmd.SetArgs(arguments)
 		} else {
-			cmd.SetArgs([]string{"path", exposePath})
+			arguments := []string{"path", exposePath}
+			closehandler.SaveArguments(arguments)
+			cmd.SetArgs(arguments)
 		}
 		cmd.Execute()
 	} else if res == "Expose a local path with WebDAV" {
@@ -102,9 +111,13 @@ func interactivePrompt() {
 		}
 		hostname := askHostname()
 		if hostname != "" {
-			cmd.SetArgs([]string{"webdav", exposePath, "--hostname", strings.ToLower(hostname)})
+			arguments := []string{"webdav", exposePath, "--hostname", strings.ToLower(hostname)}
+			closehandler.SaveArguments(arguments)
+			cmd.SetArgs(arguments)
 		} else {
-			cmd.SetArgs([]string{"webdav", exposePath})
+			arguments := []string{"webdav", exposePath}
+			closehandler.SaveArguments(arguments)
+			cmd.SetArgs(arguments)
 		}
 		cmd.Execute()
 	} else if res == "Logout" {
