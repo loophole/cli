@@ -5,10 +5,12 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	stdlog "log"
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 	"unicode"
 
@@ -26,15 +28,15 @@ import (
 
 var signalChan chan os.Signal
 
-var b bool
+var alreadyRunning bool
 
 var rootCmd = &cobra.Command{
 	Use:   "loophole",
 	Short: "Loophole - End to end TLS encrypted TCP communication between you and your clients",
 	Long:  "Loophole - End to end TLS encrypted TCP communication between you and your clients",
 	Run: func(cmd *cobra.Command, args []string) {
-		if !b {
-			b = true
+		if !alreadyRunning {
+			alreadyRunning = true
 			interactivePrompt()
 		}
 	},
@@ -48,6 +50,17 @@ func interactivePrompt() {
 		cmd.Execute()
 	}
 
+	argPath := cache.GetLocalStorageFile("lastArgs", "logs")
+	var lastArgs string = ""
+	if _, err := os.Stat(argPath); err == nil {
+		argBytes, _ := ioutil.ReadFile(argPath)
+		lastArgs = string(argBytes)
+		fmt.Println(string(lastArgs))
+	}
+	argsq := &survey.Select{
+		Message: "Your last settings were: " + lastArgs + " , would you like to reuse them?",
+		Options: []string{"Yes", "No"},
+	}
 	initq := &survey.Select{
 		Message: "Welcome to loophole. What do you want to do?",
 		Options: []string{"Expose an HTTP Port", "Expose a local path", "Expose a local path with WebDAV", "Logout"},
@@ -102,6 +115,17 @@ func interactivePrompt() {
 	var exposePath string
 	var arguments []string
 
+	if lastArgs != "" {
+		err := survey.AskOne(argsq, &res)
+		if err != nil {
+			signalChan <- nil
+		}
+		if res == "Yes" {
+			cmd.SetArgs(strings.Split(lastArgs, " ")) //needs validation
+			cmd.Execute()
+			os.Exit(0)
+		}
+	}
 	err := survey.AskOne(initq, &res)
 	if err != nil {
 		signalChan <- nil
@@ -246,7 +270,7 @@ func Execute(c chan os.Signal) {
 	rootCmd.Version = fmt.Sprintf("%s (%s)", config.Config.Version, config.Config.CommitHash)
 
 	signalChan = c
-	if !b {
+	if !alreadyRunning {
 		if err := rootCmd.Execute(); err != nil {
 			signalChan <- nil
 		}
