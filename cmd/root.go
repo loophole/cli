@@ -62,6 +62,7 @@ func interactivePrompt() {
 	var res string
 	var exposePort int
 	var exposePath string
+	var arguments []string
 
 	cmd := httpCmd.Root() //find a better way to access rootCMD
 
@@ -74,49 +75,19 @@ func interactivePrompt() {
 		if err != nil {
 			signalChan <- nil
 		}
-		hostname := askHostname()
-		if hostname != "" {
-			arguments := []string{"http", strconv.Itoa(exposePort), "--hostname", hostname}
-			closehandler.SaveArguments(arguments)
-			cmd.SetArgs(arguments)
-		} else {
-			arguments := []string{"http", strconv.Itoa(exposePort)}
-			closehandler.SaveArguments(arguments)
-			cmd.SetArgs(arguments)
-		}
-		cmd.Execute()
+		arguments = []string{"http", strconv.Itoa(exposePort)}
 	} else if res == "Expose a local path" {
 		err = survey.Ask(pathPrompt, &exposePath)
 		if err != nil {
 			signalChan <- nil
 		}
-		hostname := askHostname()
-		if hostname != "" {
-			arguments := []string{"path", exposePath, "--hostname", hostname}
-			closehandler.SaveArguments(arguments)
-			cmd.SetArgs(arguments)
-		} else {
-			arguments := []string{"path", exposePath}
-			closehandler.SaveArguments(arguments)
-			cmd.SetArgs(arguments)
-		}
-		cmd.Execute()
+		arguments = []string{"path", exposePath}
 	} else if res == "Expose a local path with WebDAV" {
 		err = survey.Ask(pathPrompt, &exposePath)
 		if err != nil {
 			signalChan <- nil
 		}
-		hostname := askHostname()
-		if hostname != "" {
-			arguments := []string{"webdav", exposePath, "--hostname", hostname}
-			closehandler.SaveArguments(arguments)
-			cmd.SetArgs(arguments)
-		} else {
-			arguments := []string{"webdav", exposePath}
-			closehandler.SaveArguments(arguments)
-			cmd.SetArgs(arguments)
-		}
-		cmd.Execute()
+		arguments = []string{"webdav", exposePath}
 	} else if res == "Logout" {
 		err := survey.AskOne(logoutPrompt, &res)
 		if err != nil {
@@ -126,7 +97,50 @@ func interactivePrompt() {
 			cmd.SetArgs([]string{"logout"})
 			cmd.Execute()
 		}
+		os.Exit(0) //if Execute() should fail, don't ask for hostname etc. but instead exit
 	}
+
+	hostname := askHostname()
+	if hostname != "" {
+		arguments = append(arguments, "--hostname", hostname)
+	}
+	basicAuth := askBasicAuth()
+	if basicAuth != "" {
+		arguments = append(arguments, "-u", basicAuth)
+	}
+	closehandler.SaveArguments(arguments)
+	cmd.SetArgs(arguments)
+	cmd.Execute()
+}
+
+func askBasicAuth() string {
+	res := ""
+	prompt := &survey.Select{
+		Message: "Do you want to secure your tunnel using a username and password?",
+		Options: []string{"Yes", "No"},
+	}
+	var hostnamePrompt = []*survey.Question{
+		{
+			Name:     "username",
+			Prompt:   &survey.Input{Message: "Please enter the username you want to use: "},
+			Validate: survey.Required,
+		},
+	}
+	err := survey.AskOne(prompt, &res)
+	if err != nil {
+		signalChan <- nil
+	}
+	if res == "Yes" {
+		err = survey.Ask(hostnamePrompt, &res)
+		if err != nil {
+			os.Exit(0)
+			return err.Error()
+		}
+	} else {
+		return ""
+	}
+	return res
+
 }
 
 func askHostname() string {
@@ -148,7 +162,6 @@ func askHostname() string {
 	}
 	if res == "Yes" {
 		err = survey.Ask(hostnamePrompt, &res)
-		time.Sleep(1 * time.Second)
 		if err != nil {
 			os.Exit(0)
 			return err.Error()
