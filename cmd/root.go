@@ -18,7 +18,7 @@ import (
 	"github.com/loophole/cli/config"
 	"github.com/loophole/cli/internal/pkg/cache"
 	"github.com/loophole/cli/internal/pkg/closehandler"
-	"github.com/loophole/cli/internal/pkg/token"
+	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/mattn/go-colorable"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -29,6 +29,10 @@ import (
 var signalChan chan os.Signal
 
 var alreadyRunning bool
+
+const http = "Expose an HTTP Port"
+const path = "Expose a local path"
+const webDAV = "Expose a local path with WebDAV"
 
 var rootCmd = &cobra.Command{
 	Use:   "loophole",
@@ -42,36 +46,14 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func interactivePrompt() {
-	cmd := httpCmd.Root() //find a better way to access rootCMD
-
-	if !token.IsTokenSaved() {
-		cmd.SetArgs([]string{"account", "login"})
-		cmd.Execute()
-	}
-
-	argPath := cache.GetLocalStorageFile("lastArgs", "logs")
-	var lastArgs string = ""
-	if _, err := os.Stat(argPath); err == nil {
-		argBytes, _ := ioutil.ReadFile(argPath)
-		lastArgs = string(argBytes)
-		fmt.Println(string(lastArgs))
-	}
-	argsq := &survey.Select{
-		Message: "Your last settings were: " + lastArgs + " , would you like to reuse them?",
-		Options: []string{"Yes", "No"},
-	}
-	initq := &survey.Select{
-		Message: "Welcome to loophole. What do you want to do?",
-		Options: []string{"Expose an HTTP Port", "Expose a local path", "Expose a local path with WebDAV", "Logout"},
-	}
-	var portPrompt = []*survey.Question{
+func getPortPrompt() []*survey.Question {
+	return []*survey.Question{
 		{
 			Name:   "port",
 			Prompt: &survey.Input{Message: "Please enter the http port you want to expose: "},
 			Validate: func(val interface{}) error {
 				if port, ok := val.(string); !ok {
-					return errors.New("enter a valid string")
+					return errors.New("port must be between 0-65535")
 				} else { //else is necessary here to keep access to port
 					n, err := strconv.Atoi(port)
 					if err != nil {
@@ -86,7 +68,10 @@ func interactivePrompt() {
 			},
 		},
 	}
-	var pathPrompt = []*survey.Question{
+}
+
+func getPathPrompt() []*survey.Question {
+	return []*survey.Question{
 		{
 			Name:   "path",
 			Prompt: &survey.Input{Message: "Please enter the path you want to expose: "},
@@ -106,71 +91,20 @@ func interactivePrompt() {
 			}),
 		},
 	}
-	logoutPrompt := &survey.Select{
-		Message: "Are you sure you want to logout?",
-		Options: []string{"No", "Yes, I'm sure"},
-	}
-	var res string
-	var exposePort int
-	var exposePath string
-	var arguments []string
+}
 
-	if lastArgs != "" {
-		err := survey.AskOne(argsq, &res)
-		if err != nil {
-			signalChan <- nil
-		}
-		if res == "Yes" {
-			cmd.SetArgs(strings.Split(lastArgs, " ")) //needs validation
-			cmd.Execute()
-			os.Exit(0)
-		}
+func getLastArgsPrompt(lastArgs string) *survey.Select {
+	return &survey.Select{
+		Message: "Your last settings were: '" + lastArgs + "', would you like to reuse them?",
+		Options: []string{"Yes", "No"},
 	}
-	err := survey.AskOne(initq, &res)
-	if err != nil {
-		signalChan <- nil
-	}
-	if res == "Expose an HTTP Port" {
-		err = survey.Ask(portPrompt, &exposePort)
-		if err != nil {
-			signalChan <- nil
-		}
-		arguments = []string{"http", strconv.Itoa(exposePort)}
-	} else if res == "Expose a local path" {
-		err = survey.Ask(pathPrompt, &exposePath)
-		if err != nil {
-			signalChan <- nil
-		}
-		arguments = []string{"path", exposePath}
-	} else if res == "Expose a local path with WebDAV" {
-		err = survey.Ask(pathPrompt, &exposePath)
-		if err != nil {
-			signalChan <- nil
-		}
-		arguments = []string{"webdav", exposePath}
-	} else if res == "Logout" {
-		err := survey.AskOne(logoutPrompt, &res)
-		if err != nil {
-			signalChan <- nil
-		}
-		if res == "Yes, I'm sure" {
-			cmd.SetArgs([]string{"account", "logout"})
-			cmd.Execute()
-		}
-		os.Exit(0) //if Execute() should fail, don't ask for hostname etc. but instead exit
-	}
+}
 
-	hostname := askHostname()
-	if hostname != "" {
-		arguments = append(arguments, "--hostname", hostname)
+func getInitialPrompt() *survey.Select {
+	return &survey.Select{
+		Message: "Welcome to loophole. What do you want to do?",
+		Options: []string{http, path, webDAV},
 	}
-	basicAuth := askBasicAuth()
-	if basicAuth != "" {
-		arguments = append(arguments, "-u", basicAuth)
-	}
-	closehandler.SaveArguments(arguments)
-	cmd.SetArgs(arguments)
-	cmd.Execute()
 }
 
 func askBasicAuth() string {
@@ -199,7 +133,6 @@ func askBasicAuth() string {
 		return ""
 	}
 	return res
-
 }
 
 func askHostname() string {
@@ -236,6 +169,78 @@ func askHostname() string {
 		return ""
 	}
 	return res
+}
+
+func interactivePrompt() {
+	argPath := cache.GetLocalStorageFile("lastArgs", "logs")
+	var lastArgs string = ""
+	if _, err := os.Stat(argPath); err == nil {
+		argBytes, err := ioutil.ReadFile(argPath)
+		if err != nil {
+			communication.Fatal("Error reading last used arguments:" + err.Error())
+		}
+		lastArgs = string(argBytes)
+	}
+	var lastArgsPrompt = getLastArgsPrompt(lastArgs)
+	var initialPrompt = getInitialPrompt()
+	var portPrompt = getPortPrompt()
+	var pathPrompt = getPathPrompt()
+
+	var res string
+	var exposePort int
+	var exposePath string
+	var arguments []string
+
+	cmd := httpCmd.Root() //TODO: find a better way to access rootCMD
+
+	if lastArgs != "" {
+		err := survey.AskOne(lastArgsPrompt, &res)
+		if err != nil {
+			signalChan <- nil
+		}
+		if res == "Yes" {
+			cmd.SetArgs(strings.Split(lastArgs, " ")) //needs validation
+			cmd.Execute()
+			os.Exit(1)
+		}
+	}
+	err := survey.AskOne(initialPrompt, &res)
+
+	if err != nil {
+		signalChan <- nil
+	}
+	switch res {
+	case http:
+		err = survey.Ask(portPrompt, &exposePort)
+		if err != nil {
+			signalChan <- nil
+		}
+		arguments = []string{"http", strconv.Itoa(exposePort)}
+	case path:
+		err = survey.Ask(pathPrompt, &exposePath)
+		if err != nil {
+			signalChan <- nil
+		}
+		arguments = []string{"path", exposePath}
+	case webDAV:
+		err = survey.Ask(pathPrompt, &exposePath)
+		if err != nil {
+			signalChan <- nil
+		}
+		arguments = []string{"webdav", exposePath}
+	}
+
+	hostname := askHostname()
+	if hostname != "" {
+		arguments = append(arguments, "--hostname", hostname)
+	}
+	basicAuth := askBasicAuth()
+	if basicAuth != "" {
+		arguments = append(arguments, "-u", basicAuth)
+	}
+	closehandler.SaveArguments(arguments)
+	cmd.SetArgs(arguments)
+	cmd.Execute()
 }
 
 func init() {
