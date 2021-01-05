@@ -9,7 +9,7 @@ import (
 	"github.com/logrusorgru/aurora"
 	"github.com/loophole/cli/internal/pkg/urlmaker"
 	"github.com/mattn/go-colorable"
-	"github.com/mdp/qrterminal"
+	"github.com/mdp/qrterminal/v3"
 	"github.com/rs/zerolog/log"
 )
 
@@ -158,12 +158,5 @@ func WriteItalic(message string) {
 }
 
 func QRCode(siteAddr string) {
-	QRconfig := qrterminal.Config{
-		Level:     qrterminal.L,
-		Writer:    colorableOutput,
-		BlackChar: qrterminal.WHITE,
-		WhiteChar: qrterminal.BLACK,
-		QuietZone: 1,
-	}
-	qrterminal.GenerateWithConfig(siteAddr, QRconfig)
+	qrterminal.GenerateHalfBlock(siteAddr, qrterminal.L, colorableOutput)
 }
