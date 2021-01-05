@@ -7,7 +7,7 @@ require (
 	github.com/briandowns/spinner v1.11.1
 	github.com/logrusorgru/aurora v0.0.0-20200102142835-e9ef32dff381
 	github.com/mattn/go-colorable v0.1.2
-	github.com/mdp/qrterminal v1.0.1
+	github.com/mdp/qrterminal/v3 v3.0.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/rs/zerolog v1.19.0
 	github.com/spf13/cobra v1.0.0
