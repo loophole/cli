@@ -1,32 +1,87 @@
 project_name: loophole
 
+env:
+  - GO111MODULE=on
+
 before:
   hooks:
     - go mod download
-
+    - pkger
+    
 builds:
-  - id: loophole
-    binary: loophole
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - 386
-      - amd64
-      - arm
-      - arm64
-    mod_timestamp: "{{ .CommitTimestamp }}"
-    ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}}
+- id: loophole-cli
+  binary: loophole
+  goos:
+    - linux
+    - darwin
+    - windows
+  goarch:
+    - 386
+    - amd64
+    - arm
+    - arm64
+  goarm:
+    - 6
+    - 7
+  mod_timestamp: "{{ .CommitTimestamp }}"
+  ldflags:
+    - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}}
+  flags:
+  - -tags=skippkger
+
+- id: loophole-desktop
+  binary: loophole-desktop
+  goos:
+    - darwin
+    - linux
+  goarch:
+    - amd64
+    - 386
+  mod_timestamp: "{{ .CommitTimestamp }}"
+  ldflags:
+    - -s -w -X config.version={{.Version}} -X config.commit={{.Commit}}
+  flags:
+  - -tags=desktop
+
+- id: loophole-desktop-win
+  binary: loophole-desktop
+  goos:
+    - windows
+  goarch:
+    - amd64
+    - 386
+  mod_timestamp: "{{ .CommitTimestamp }}"
+  ldflags:
+    - -s -w -X config.version={{.Version}} -X config.commit={{.Commit}} -H windowsgui
+  flags:
+  - -tags=desktop
 
 archives:
-  - replacements:
-      386: i386
+  - id: cli
+    builds:
+      - loophole-cli
+    replacements:
+      amd64: 64bit
+      386: 32bit
+      darwin: macos
     format_overrides:
       - goos: windows
         format: zip
-
+    wrap_in_directory: true
+    name_template: "{{ .ProjectName }}-cli_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
+  - id: desktop
+    builds:
+      - loophole-desktop
+      - loophole-desktop-win
+    replacements:
+      amd64: 64bit
+      386: 32bit
+      darwin: macos
+    format_overrides:
+      - goos: windows
+        format: zip
+    wrap_in_directory: true
+    name_template: "{{ .ProjectName }}-desktop_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
 checksum:
   name_template: "checksums.txt"
 

@@ -1,3 +1,5 @@
+// +build !desktop
+
 package cmd
 
 import (
@@ -6,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/loophole/cli/config"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/cache"
 	"github.com/loophole/cli/internal/pkg/closehandler"
@@ -30,8 +33,6 @@ var rootCmd = &cobra.Command{
 func init() {
 	cobra.OnInitialize(initLogger)
 
-	displayOptions.FeedbackFormURL = "https://forms.gle/K9ga7FZB3deaffnV7"
-	closehandler.SetupCloseHandler(displayOptions.FeedbackFormURL)
 	rootCmd.PersistentFlags().BoolVarP(&displayOptions.Verbose, "verbose", "v", false, "verbose output")
 }
 
@@ -57,9 +58,12 @@ func initLogger() {
 }
 
 // Execute runs command parsing chain
-func Execute(version string, commit string) {
-	rootCmd.Version = fmt.Sprintf("%s (%s)", version, commit)
-	displayOptions.Version = fmt.Sprintf("%s-%s", version, commit)
+func Execute(config config.ApplicationConfig) {
+	rootCmd.Version = fmt.Sprintf("%s (%s)", config.DisplayConfig.Version, config.DisplayConfig.CommitHash)
+	displayOptions.Version = fmt.Sprintf("%s-%s", config.DisplayConfig.Version, config.DisplayConfig.CommitHash)
+
+	closehandler.SetupCloseHandler(config.DisplayConfig.FeedbackFormURL)
+
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

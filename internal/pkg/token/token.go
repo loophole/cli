@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/logrusorgru/aurora"
 	"github.com/loophole/cli/internal/pkg/cache"
 	"github.com/loophole/cli/internal/pkg/communication"
+	tm "github.com/loophole/cli/internal/pkg/token/models"
 	"github.com/rs/zerolog/log"
 )
 
@@ -24,40 +24,19 @@ const (
 	audience      = "https://api.loophole.cloud"
 )
 
-type DeviceCodeSpec struct {
-	DeviceCode              string `json:"device_code"`
-	UserCode                string `json:"user_code"`
-	ExpiresIn               int    `json:"expires_in"`
-	Interval                int    `json:"interval"`
-	VeritificationURI       string `json:"verification_uri"`
-	VerificationURIComplete string `json:"verification_uri_complete"`
-}
-
-type AuthError struct {
-	Error            string `json:"error"`
-	ErrorDescription string `json:"error_description"`
-}
-
-type TokenSpec struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	IDToken      string `json:"id_token"`
-	TokenType    string `json:"token_type"`
-	ExpiresIn    int    `json:"expires_in"`
-}
-
 func IsTokenSaved() bool {
 	tokensLocation := cache.GetLocalStorageFile("tokens.json", "")
 
 	if _, err := os.Stat(tokensLocation); os.IsNotExist(err) {
 		return false
 	} else if err != nil {
-		communication.LogFatalErr("There was a problem reading tokens file", err)
+		communication.LogWarnErr("There was a problem reading tokens file", err)
+		return false
 	}
 	return true
 }
 
-func SaveToken(token *TokenSpec) error {
+func SaveToken(token *tm.TokenSpec) error {
 	tokensLocation := cache.GetLocalStorageFile("tokens.json", "")
 
 	tokenBytes, err := json.Marshal(token)
@@ -71,7 +50,7 @@ func SaveToken(token *TokenSpec) error {
 	return nil
 }
 
-func RegisterDevice() (*DeviceCodeSpec, error) {
+func RegisterDevice() (*tm.DeviceCodeSpec, error) {
 	payload := strings.NewReader(fmt.Sprintf("client_id=%s&scope=%s&audience=%s", url.QueryEscape(clientID), url.QueryEscape(scope), url.QueryEscape(audience)))
 
 	req, err := http.NewRequest("POST", deviceCodeURL, payload)
@@ -91,18 +70,15 @@ func RegisterDevice() (*DeviceCodeSpec, error) {
 		return nil, fmt.Errorf("There was a problem reading device token response body")
 	}
 
-	var jsonResponseBody DeviceCodeSpec
+	var jsonResponseBody tm.DeviceCodeSpec
 	err = json.Unmarshal(body, &jsonResponseBody)
 	if err != nil {
 		return nil, fmt.Errorf("There was a problem decoding device token response body")
 	}
-
-	communication.LogInfo(fmt.Sprintf("Please open %s and use %s code to log in", aurora.Yellow(jsonResponseBody.VeritificationURI), aurora.Yellow(jsonResponseBody.UserCode)))
-
 	return &jsonResponseBody, nil
 }
 
-func PollForToken(deviceCode string, interval int) (*TokenSpec, error) {
+func PollForToken(deviceCode string, interval int, quitChannel <-chan bool) (*tm.TokenSpec, error) {
 	grantType := "urn:ietf:params:oauth:grant-type:device_code"
 
 	pollingInterval := time.Duration(interval) * time.Second
@@ -112,65 +88,70 @@ func PollForToken(deviceCode string, interval int) (*TokenSpec, error) {
 		Msg("Polling with interval")
 
 	for {
-		payload := strings.NewReader(
-			fmt.Sprintf("grant_type=%s&device_code=%s&client_id=%s",
-				url.QueryEscape(grantType),
-				url.QueryEscape(deviceCode),
-				url.QueryEscape(clientID)))
+		select {
+		case <-quitChannel:
+			return nil, fmt.Errorf("Login operation aborted")
+		default:
+			payload := strings.NewReader(
+				fmt.Sprintf("grant_type=%s&device_code=%s&client_id=%s",
+					url.QueryEscape(grantType),
+					url.QueryEscape(deviceCode),
+					url.QueryEscape(clientID)))
 
-		req, err := http.NewRequest("POST", tokenURL, payload)
-		if err != nil {
-			log.Debug().Err(err).Msg("There was a problem creating HTTP POST request for token")
-		}
-		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+			req, err := http.NewRequest("POST", tokenURL, payload)
+			if err != nil {
+				log.Debug().Err(err).Msg("There was a problem creating HTTP POST request for token")
+			}
+			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-		time.Sleep(pollingInterval)
-		res, err := http.DefaultClient.Do(req)
-		if err != nil {
-			log.Debug().Err(err).Msg("There was a problem executing request for token")
-			continue
-		}
-		defer res.Body.Close()
-		body, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			log.Debug().
-				Bytes("body", body).
-				Err(err).
-				Msg("There was a problem reading token response body")
-			continue
-		}
-
-		if res.StatusCode > 400 && res.StatusCode < 500 {
-			var jsonResponseBody AuthError
-			err := json.Unmarshal(body, &jsonResponseBody)
+			time.Sleep(pollingInterval)
+			res, err := http.DefaultClient.Do(req)
+			if err != nil {
+				log.Debug().Err(err).Msg("There was a problem executing request for token")
+				continue
+			}
+			defer res.Body.Close()
+			body, err := ioutil.ReadAll(res.Body)
 			if err != nil {
 				log.Debug().
-					Err(err).
 					Bytes("body", body).
-					Msg("There was a problem decoding token response body")
+					Err(err).
+					Msg("There was a problem reading token response body")
 				continue
 			}
-			log.Debug().
-				Str("error", jsonResponseBody.Error).
-				Str("errorDescription", jsonResponseBody.ErrorDescription).
-				Msg("Error response")
-			if jsonResponseBody.Error == "authorization_pending" || jsonResponseBody.Error == "slow_down" {
-				continue
-			} else if jsonResponseBody.Error == "expired_token" || jsonResponseBody.Error == "invalid_grand" {
-				return nil, fmt.Errorf("The device token expired, please reinitialize the login")
-			} else if jsonResponseBody.Error == "access_denied" {
-				return nil, fmt.Errorf("The device token got denied, please reinitialize the login")
+
+			if res.StatusCode > 400 && res.StatusCode < 500 {
+				var jsonResponseBody tm.AuthError
+				err := json.Unmarshal(body, &jsonResponseBody)
+				if err != nil {
+					log.Debug().
+						Err(err).
+						Bytes("body", body).
+						Msg("There was a problem decoding token response body")
+					continue
+				}
+				log.Debug().
+					Str("error", jsonResponseBody.Error).
+					Str("errorDescription", jsonResponseBody.ErrorDescription).
+					Msg("Error response")
+				if jsonResponseBody.Error == "authorization_pending" || jsonResponseBody.Error == "slow_down" {
+					continue
+				} else if jsonResponseBody.Error == "expired_token" || jsonResponseBody.Error == "invalid_grand" {
+					return nil, fmt.Errorf("The device token expired, please reinitialize the login")
+				} else if jsonResponseBody.Error == "access_denied" {
+					return nil, fmt.Errorf("The device token got denied, please reinitialize the login")
+				}
+			} else if res.StatusCode >= 200 && res.StatusCode <= 300 {
+				var jsonResponseBody tm.TokenSpec
+				err := json.Unmarshal(body, &jsonResponseBody)
+				if err != nil {
+					log.Debug().Err(err).Msg("There was a problem decoding token response body")
+					continue
+				}
+				return &jsonResponseBody, nil
+			} else {
+				return nil, fmt.Errorf("Unexpected response from authorization server: %s", body)
 			}
-		} else if res.StatusCode >= 200 && res.StatusCode <= 300 {
-			var jsonResponseBody TokenSpec
-			err := json.Unmarshal(body, &jsonResponseBody)
-			if err != nil {
-				log.Debug().Err(err).Msg("There was a problem decoding token response body")
-				continue
-			}
-			return &jsonResponseBody, nil
-		} else {
-			return nil, fmt.Errorf("Unexpected response from authorization server: %s", body)
 		}
 	}
 }
@@ -199,7 +180,7 @@ func RefreshToken() error {
 	}
 
 	if res.StatusCode > 400 && res.StatusCode < 500 {
-		var jsonResponseBody AuthError
+		var jsonResponseBody tm.AuthError
 		err := json.Unmarshal(body, &jsonResponseBody)
 		if err != nil {
 			return err
@@ -214,7 +195,7 @@ func RefreshToken() error {
 			return fmt.Errorf("The device token got denied, please reinitialize the login")
 		}
 	} else if res.StatusCode >= 200 && res.StatusCode <= 300 {
-		var jsonResponseBody TokenSpec
+		var jsonResponseBody tm.TokenSpec
 		err := json.Unmarshal(body, &jsonResponseBody)
 		if err != nil {
 			return err
@@ -251,7 +232,7 @@ func GetAccessToken() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("There was a problem reading tokens: %v", err)
 	}
-	var token TokenSpec
+	var token tm.TokenSpec
 	err = json.Unmarshal(tokens, &token)
 	if err != nil {
 		return "", fmt.Errorf("There was a problem decoding tokens: %v", err)
@@ -266,7 +247,7 @@ func GetRefreshToken() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("There was a problem reading tokens: %v", err)
 	}
-	var token TokenSpec
+	var token tm.TokenSpec
 	err = json.Unmarshal(tokens, &token)
 	if err != nil {
 		return "", fmt.Errorf("There was a problem decoding tokens: %v", err)

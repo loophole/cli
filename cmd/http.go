@@ -1,3 +1,5 @@
+// +build !desktop
+
 package cmd
 
 import (
@@ -7,11 +9,13 @@ import (
 
 	"github.com/loophole/cli/internal/app/loophole"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
+	"github.com/loophole/cli/internal/pkg/communication"
+	"github.com/loophole/cli/internal/pkg/token"
 
 	"github.com/spf13/cobra"
 )
 
-var localEndpointSpecs lm.LocalHttpEndpointSpecs
+var localEndpointSpecs lm.LocalHTTPEndpointSpecs
 
 var httpCmd = &cobra.Command{
 	Use:   "http <port> [host]",
@@ -21,17 +25,20 @@ var httpCmd = &cobra.Command{
 To expose server running locally on port 3000 simply use 'loophole http 3000'.
 To expose port running on some local host e.g. 192.168.1.20 use 'loophole http <port> 192.168.1.20'`,
 	Run: func(cmd *cobra.Command, args []string) {
+		loggedIn := token.IsTokenSaved()
+		communication.PrintWelcomeMessage(loggedIn)
 		localEndpointSpecs.Host = "127.0.0.1"
 		if len(args) > 1 {
 			localEndpointSpecs.Host = args[1]
 		}
 		port, _ := strconv.ParseInt(args[0], 10, 32)
 		localEndpointSpecs.Port = int32(port)
-		loophole.ForwardPort(lm.ExposeHttpConfig{
+		quitChannel := make(chan bool)
+		loophole.ForwardPort(lm.ExposeHTTPConfig{
 			Local:   localEndpointSpecs,
 			Remote:  remoteEndpointSpecs,
 			Display: displayOptions,
-		})
+		}, quitChannel)
 	},
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {

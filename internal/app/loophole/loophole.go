@@ -18,6 +18,17 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+type TunnelType string
+
+const (
+	// HTTP specifies HTTP tunnel type
+	HTTP TunnelType = "Tunnel_HTTP"
+	// Directory specifies local directory tunnel type (download only)
+	Directory TunnelType = "Tunnel_Directory"
+	// WebDav specifies local directory tunnel type (download+upload via WebDav)
+	WebDav TunnelType = "Tunnel_WebDav"
+)
+
 // remote forwarding port (on remote SSH server network)
 var remoteEndpoint = lm.Endpoint{
 	Host: "127.0.0.1",
@@ -235,19 +246,17 @@ func getWebdavServer(path string, siteID string, basicAuthUsername string, basic
 	return server
 }
 
-func listenOnRemoteEndpoint(serverSSHConnHTTPS *ssh.Client) net.Listener {
+func listenOnRemoteEndpoint(serverSSHConnHTTPS *ssh.Client) *net.Listener {
 	listenerHTTPSOverSSH, err := serverSSHConnHTTPS.Listen("tcp", remoteEndpoint.URI())
 	if err != nil {
 		communication.LoadingFailure()
 		communication.LogFatalErr("Listening on remote endpoint for HTTPS failed", err)
 	}
-	return listenerHTTPSOverSSH
+	return &listenerHTTPSOverSSH
 }
 
 // ForwardPort is used to forward external URL to locally available port
-func ForwardPort(config lm.ExposeHttpConfig) {
-	communication.PrintWelcomeMessage()
-
+func ForwardPort(config lm.ExposeHTTPConfig, quitChannel <-chan bool) {
 	protocol := "http"
 	if config.Local.HTTPS {
 		protocol = "https"
@@ -261,40 +270,37 @@ func ForwardPort(config lm.ExposeHttpConfig) {
 	publicKeyAuthMethod, publicKey := parsePublicKey(config.Remote.IdentityFile)
 	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID, config.Display.Version)
 	server := createTLSReverseProxy(localEndpoint, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword, config.Display)
-	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, localEndpoint.URI(), []string{"https"})
+
+	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, localEndpoint.URI(), []string{"https"}, quitChannel)
 }
 
 // ForwardDirectory is used to expose local directory via HTTP (download only)
-func ForwardDirectory(config lm.ExposeDirectoryConfig) {
-	communication.PrintWelcomeMessage()
-
+func ForwardDirectory(config lm.ExposeDirectoryConfig, quitChannel <-chan bool) {
 	publicKeyAuthMethod, publicKey := parsePublicKey(config.Remote.IdentityFile)
 	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID, config.Display.Version)
 	server := getStaticFileServer(config.Local.Path, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword)
 
-	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, config.Local.Path, []string{"https"})
+	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, config.Local.Path, []string{"https"}, quitChannel)
 }
 
 // ForwardDirectoryViaWebdav is used to expose local directory via Webdav (upload and download)
-func ForwardDirectoryViaWebdav(config lm.ExposeWebdavConfig) {
-	communication.PrintWelcomeMessage()
-
+func ForwardDirectoryViaWebdav(config lm.ExposeWebdavConfig, quitChannel <-chan bool) {
 	publicKeyAuthMethod, publicKey := parsePublicKey(config.Remote.IdentityFile)
 	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID, config.Display.Version)
 	server := getWebdavServer(config.Local.Path, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword)
 
-	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, config.Local.Path, []string{"https", "davs", "webdav"})
+	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, config.Local.Path, []string{"https", "davs", "webdav"}, quitChannel)
 }
 
 func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs, displayOptions lm.DisplayOptions,
 	authMethod ssh.AuthMethod, siteID string, server *http.Server, localEndpoint string,
-	protocols []string) {
+	protocols []string, quitChannel <-chan bool) {
 	localListenerEndpoint := startLocalHTTPServer(server)
 
 	serverSSHConnHTTPS := connectViaSSH(remoteEndpointSpecs.GatewayEndpoint, siteID, authMethod)
 	defer serverSSHConnHTTPS.Close()
 	listenerHTTPSOverSSH := listenOnRemoteEndpoint(serverSSHConnHTTPS)
-	defer listenerHTTPSOverSSH.Close()
+	defer (*listenerHTTPSOverSSH).Close()
 
 	go func() {
 		communication.LogInfo("Issuing request to provision certificate")
@@ -319,31 +325,54 @@ func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs, displayOptions lm.Displ
 
 	communication.PrintTunnelSuccessMessage(siteID, protocols, localEndpoint, displayOptions.QR)
 
-	for {
-		client, err := listenerHTTPSOverSSH.Accept()
-		if err == io.EOF {
-			communication.LogInfo(err.Error() + " Connection dropped, reconnecting...")
-			listenerHTTPSOverSSH.Close()
-			serverSSHConnHTTPS = connectViaSSH(remoteEndpointSpecs.GatewayEndpoint, siteID, authMethod)
-			defer serverSSHConnHTTPS.Close()
-			listenerHTTPSOverSSH = listenOnRemoteEndpoint(serverSSHConnHTTPS)
-			defer listenerHTTPSOverSSH.Close()
-			continue
-		} else if err != nil {
-			log.Warn().Err(err).Msg("Failed to accept connection over HTTPS")
-			continue
+	acceptedClients := make(chan net.Conn)
+	tunnelTerminatedOnPurpose := false
+
+	go func(l *net.Listener, tunnelTerminatedOnPurpose *bool) {
+		for {
+			log.Debug().Msg("Waiting to accept")
+			client, err := (*l).Accept()
+			log.Debug().Msg("Accepted")
+			if err == io.EOF {
+				if !(*tunnelTerminatedOnPurpose) {
+					communication.LogInfo(err.Error() + " Connection dropped, reconnecting...")
+					(*l).Close()
+					serverSSHConnHTTPS = connectViaSSH(remoteEndpointSpecs.GatewayEndpoint, siteID, authMethod)
+					defer serverSSHConnHTTPS.Close()
+					l = listenOnRemoteEndpoint(serverSSHConnHTTPS)
+					defer (*l).Close()
+					continue
+				}
+			} else if err != nil {
+				communication.LogWarnErr("Failed to accept connection over HTTPS", err)
+				continue
+			}
+			log.Debug().Msg("Sending client trough channel")
+			acceptedClients <- client
 		}
-		closehandler.SuccessfulConnectionOccured()
-		go func() {
-			communication.LogInfo("Succeeded to accept connection over HTTPS")
-			local, err := net.Dial("tcp", localListenerEndpoint.URI())
-			if err != nil {
-				communication.LogFatalErr("Dialing into local proxy for HTTPS failed", err)
-			}
-			if el := log.Debug(); el.Enabled() {
-				el.Msg("Dialing into local proxy for HTTPS succeeded")
-			}
-			handleClient(client, local)
-		}()
+	}(listenerHTTPSOverSSH, &tunnelTerminatedOnPurpose)
+
+	for {
+		log.Debug().Msg("For loop cycle")
+		select {
+		case <-quitChannel:
+			tunnelTerminatedOnPurpose = true
+			communication.PrintGoodbyeMessage()
+			return
+		case client := <-acceptedClients:
+			log.Debug().Msg("Handling client")
+			closehandler.SuccessfulConnectionOccured()
+			go func() {
+				communication.LogInfo("Succeeded to accept connection over HTTPS")
+				local, err := net.Dial("tcp", localListenerEndpoint.URI())
+				if err != nil {
+					communication.LogFatalErr("Dialing into local proxy for HTTPS failed", err)
+				}
+				if el := log.Debug(); el.Enabled() {
+					el.Msg("Dialing into local proxy for HTTPS succeeded")
+				}
+				handleClient(client, local)
+			}()
+		}
 	}
 }

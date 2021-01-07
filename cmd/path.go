@@ -1,3 +1,5 @@
+// +build !desktop
+
 package cmd
 
 import (
@@ -5,6 +7,8 @@ import (
 
 	"github.com/loophole/cli/internal/app/loophole"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
+	"github.com/loophole/cli/internal/pkg/communication"
+	"github.com/loophole/cli/internal/pkg/token"
 	"github.com/spf13/cobra"
 )
 
@@ -18,12 +22,15 @@ var dirCmd = &cobra.Command{
 
 To expose local directory (e.g. /data/my-data) simply use 'loophole path /data/my-data'.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		loggedIn := token.IsTokenSaved()
+		communication.PrintWelcomeMessage(loggedIn)
 		dirEndpointSpecs.Path = args[0]
+		quitChannel := make(chan bool)
 		loophole.ForwardDirectory(lm.ExposeDirectoryConfig{
 			Local:   dirEndpointSpecs,
 			Remote:  remoteEndpointSpecs,
 			Display: displayOptions,
-		})
+		}, quitChannel)
 	},
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
