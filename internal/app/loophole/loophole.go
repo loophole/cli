@@ -122,6 +122,10 @@ func createTLSReverseProxy(localEndpoint lm.Endpoint, siteID string, basicAuthUs
 		serverBuilder = serverBuilder.
 			DisableProxyErrorPage()
 	}
+	if localEndpoint.Protocol == "https" {
+		serverBuilder = serverBuilder.
+			EnableInsecureHTTPSBackend()
+	}
 
 	if el := log.Debug(); el.Enabled() {
 		el.
