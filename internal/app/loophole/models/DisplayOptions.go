@@ -7,4 +7,5 @@ type DisplayOptions struct {
 	FeedbackFormURL       string
 	DisableProxyErrorPage bool
 	Version               string
+	CommitHash string
 }

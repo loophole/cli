@@ -4,8 +4,10 @@ go 1.14
 
 require (
 	github.com/abbot/go-http-auth v0.4.0
+	github.com/blang/semver/v4 v4.0.0
 	github.com/briandowns/spinner v1.11.1
 	github.com/logrusorgru/aurora v0.0.0-20200102142835-e9ef32dff381
+	github.com/markbates/pkger v0.17.1
 	github.com/mattn/go-colorable v0.1.2
 	github.com/mdp/qrterminal/v3 v3.0.0
 	github.com/mitchellh/go-homedir v1.1.0
