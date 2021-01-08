@@ -1,4 +1,4 @@
-source = ["./dist/loophole-macos_darwin_amd64/loophole"]
+source = ["dist/loophole-cli-macos_darwin_amd64/loophole"]
 bundle_id = "cloud.loophole.cli"
 
 apple_id {
