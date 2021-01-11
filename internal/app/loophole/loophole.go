@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/blang/semver/v4"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/apiclient"
 	"github.com/loophole/cli/internal/pkg/closehandler"
@@ -53,9 +54,9 @@ func handleClient(client net.Conn, local net.Conn) {
 	<-chDone
 }
 
-func registerDomain(apiURL string, publicKey *ssh.PublicKey, requestedSiteID, version string) string {
+func registerDomain(apiURL string, publicKey *ssh.PublicKey, requestedSiteID, version, commitHash string) string {
 	communication.StartLoading("Registering your domain...")
-	siteID, err := apiclient.RegisterSite(apiURL, *publicKey, requestedSiteID, version)
+	siteID, err := apiclient.RegisterSite(apiURL, *publicKey, requestedSiteID, version, commitHash)
 	if err != nil {
 		communication.LoadingFailure()
 		if requestErr, ok := err.(apiclient.RequestError); ok {
@@ -251,6 +252,7 @@ func listenOnRemoteEndpoint(serverSSHConnHTTPS *ssh.Client) net.Listener {
 // ForwardPort is used to forward external URL to locally available port
 func ForwardPort(config lm.ExposeHttpConfig) {
 	communication.PrintWelcomeMessage()
+	checkVersion(config.Remote.APIEndpoint.URI(), config.Display.Version)
 
 	protocol := "http"
 	if config.Local.HTTPS {
@@ -263,7 +265,7 @@ func ForwardPort(config lm.ExposeHttpConfig) {
 	}
 
 	publicKeyAuthMethod, publicKey := parsePublicKey(config.Remote.IdentityFile)
-	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID, config.Display.Version)
+	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID, config.Display.Version, config.Display.CommitHash)
 	server := createTLSReverseProxy(localEndpoint, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword, config.Display)
 	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, localEndpoint.URI(), []string{"https"})
 }
@@ -271,9 +273,10 @@ func ForwardPort(config lm.ExposeHttpConfig) {
 // ForwardDirectory is used to expose local directory via HTTP (download only)
 func ForwardDirectory(config lm.ExposeDirectoryConfig) {
 	communication.PrintWelcomeMessage()
+	checkVersion(config.Remote.APIEndpoint.URI(), config.Display.Version)
 
 	publicKeyAuthMethod, publicKey := parsePublicKey(config.Remote.IdentityFile)
-	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID, config.Display.Version)
+	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID, config.Display.Version, config.Display.CommitHash)
 	server := getStaticFileServer(config.Local.Path, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword)
 
 	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, config.Local.Path, []string{"https"})
@@ -282,9 +285,10 @@ func ForwardDirectory(config lm.ExposeDirectoryConfig) {
 // ForwardDirectoryViaWebdav is used to expose local directory via Webdav (upload and download)
 func ForwardDirectoryViaWebdav(config lm.ExposeWebdavConfig) {
 	communication.PrintWelcomeMessage()
+	checkVersion(config.Remote.APIEndpoint.URI(), config.Display.Version)
 
 	publicKeyAuthMethod, publicKey := parsePublicKey(config.Remote.IdentityFile)
-	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID, config.Display.Version)
+	siteID := registerDomain(config.Remote.APIEndpoint.URI(), &publicKey, config.Remote.SiteID, config.Display.Version, config.Display.CommitHash)
 	server := getWebdavServer(config.Local.Path, siteID, config.Remote.BasicAuthUsername, config.Remote.BasicAuthPassword)
 
 	forward(config.Remote, config.Display, publicKeyAuthMethod, siteID, server, config.Local.Path, []string{"https", "davs", "webdav"})
@@ -349,5 +353,29 @@ func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs, displayOptions lm.Displ
 			}
 			handleClient(client, local)
 		}()
+	}
+}
+
+func checkVersion(apiURL, currentVersion string) {
+	availableVersion, err := apiclient.GetLatestAvailableVersion(apiURL, currentVersion)
+	if err != nil {
+		communication.LogDebug("There was a problem obtaining info response, skipping further checking")
+		return
+	}
+	currentVersionParsed, err := semver.Make(currentVersion)
+	if err != nil {
+		communication.LogDebug(fmt.Sprintf("Cannot parse current version '%s' as semver version, skipping further checking", currentVersion))
+		return
+	}
+	availableVersionParsed, err := semver.Make(availableVersion)
+	if err != nil {
+		communication.LogDebug(fmt.Sprintf("Cannot parse available version '%s' as semver version, skipping further checking", availableVersion))
+		return
+	}
+	if currentVersionParsed.LT(availableVersionParsed) {
+		communication.WriteCyan(
+			fmt.Sprintf("There is new version available, to get it please visit %s",
+				fmt.Sprintf("https://github.com/loophole/cli/releases/tag/%s", availableVersion)))
+		communication.NewLine()
 	}
 }

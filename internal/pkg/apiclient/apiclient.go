@@ -17,9 +17,14 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// SuccessResponse defines the json format in which the success response is returned
-type SuccessResponse struct {
+// RegistrationSuccessResponse defines the json format in which the registration success response is returned
+type RegistrationSuccessResponse struct {
 	SiteID string `json:"siteId"`
+}
+
+// InfoSuccessResponse defines the json format in which the info success response is returned
+type InfoSuccessResponse struct {
+	Version string `json:"version"`
 }
 
 // ErrorResponse defines the json format in which the error response is returned
@@ -44,7 +49,7 @@ var getAccessToken = token.GetAccessToken
 var tokenWasRefreshed = false
 
 // RegisterSite is a funtion used to obtain site id and register keys in the gateway
-func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID, version string) (string, error) {
+func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID, version, commitHash string) (string, error) {
 	publicKeyString := publicKey.Type() + " " + base64.StdEncoding.EncodeToString(publicKey.Marshal())
 
 	if !isTokenSaved() {
@@ -82,8 +87,7 @@ func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID, version string
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", fmt.Sprintf("loophole/%s (%s/%s) %s", version, runtime.GOOS, runtime.GOARCH, urlmaker.HostURL))
+	req.Header.Set("User-Agent", fmt.Sprintf("loophole/%s-%s (%s/%s) %s", version, commitHash, runtime.GOOS, runtime.GOARCH, urlmaker.HostURL))
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
 
 	var netTransport = &http.Transport{
@@ -130,7 +134,7 @@ func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID, version string
 					}
 				}
 				tokenWasRefreshed = true
-				return RegisterSite(apiURL, publicKey, siteID, version)
+				return RegisterSite(apiURL, publicKey, siteID, version, commitHash)
 			}
 			return "", RequestError{
 				Message:    "Authentication failed, try logging out and logging in again",
@@ -168,7 +172,7 @@ func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID, version string
 		}
 	}
 
-	result := SuccessResponse{}
+	result := RegistrationSuccessResponse{}
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
 		return "", err
@@ -176,8 +180,53 @@ func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID, version string
 
 	if el := log.Debug(); el.Enabled() {
 		fmt.Println()
-		el.Interface("result", result).Msg("Response")
+		el.Interface("result", result).Msg("Site registration response")
 	}
 
 	return result.SiteID, nil
+}
+
+func GetLatestAvailableVersion(apiURL string, version string) (string, error) {
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/info", apiURL), bytes.NewBuffer([]byte{}))
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", fmt.Sprintf("loophole/%s (%s/%s) %s", version, runtime.GOOS, runtime.GOARCH, urlmaker.HostURL))
+
+	var netTransport = &http.Transport{
+		Dial: (&net.Dialer{
+			Timeout: 5 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout: 5 * time.Second,
+	}
+	var netClient = &http.Client{
+		Timeout:   time.Second * 30,
+		Transport: netTransport,
+	}
+
+	resp, err := netClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("Request for information failed, skipping")
+	}
+
+	result := InfoSuccessResponse{}
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		return "", err
+	}
+
+	if el := log.Debug(); el.Enabled() {
+		fmt.Println()
+		el.Interface("result", result).Msg("Info response")
+	}
+
+	return result.Version, nil
 }

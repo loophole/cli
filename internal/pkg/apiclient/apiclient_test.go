@@ -29,7 +29,7 @@ func TestRegisterSiteSuccessOKShouldPropagateWithoutIdProvided(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0")
+	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0", "asd123")
 
 	if err != nil {
 		t.Fatalf("Unexpected error returned: %v", err)
@@ -57,7 +57,7 @@ func TestRegisterSiteSuccessCreatedShouldPropagateWithoutIdProvided(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0")
+	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0", "asd123")
 
 	if err != nil {
 		t.Fatalf("Unexpected error returned: %v", err)
@@ -86,7 +86,7 @@ func TestRegisterSiteSuccessOKShouldPropagateWithIdProvided(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RegisterSite(srv.URL, publicKey, expectedSiteID, "1.0.0")
+	result, err := RegisterSite(srv.URL, publicKey, expectedSiteID, "1.0.0", "asd123")
 
 	if err != nil {
 		t.Fatalf("Unexpected error returned: %v", err)
@@ -114,7 +114,7 @@ func TestRegisterSiteSuccessCreatedShouldPropagateWithIdProvided(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RegisterSite(srv.URL, publicKey, expectedSiteID, "1.0.0")
+	result, err := RegisterSite(srv.URL, publicKey, expectedSiteID, "1.0.0", "asd123")
 
 	if err != nil {
 		t.Fatalf("Unexpected error returned: %v", err)
@@ -145,7 +145,7 @@ func TestRegisterSiteError400ShouldPropagateError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0")
+	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0", "asd123")
 
 	if err == nil {
 		t.Fatalf("Expected an error to be returned")
@@ -186,7 +186,7 @@ func TestRegisterSiteError401ShouldPropagateError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0")
+	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0", "asd123")
 
 	if err == nil {
 		t.Fatalf("Expected an error to be returned")
@@ -227,7 +227,7 @@ func TestRegisterSiteError403ShouldPropagateError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0")
+	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0", "asd123")
 
 	if err == nil {
 		t.Fatalf("Expected an error to be returned")
@@ -264,7 +264,7 @@ func TestRegisterTokenNotSavedReturns401(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0")
+	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0", "asd123")
 
 	if err == nil {
 		t.Fatalf("Expected an error to be returned")
@@ -298,7 +298,7 @@ func TestRegisterTokenReadingProblemReturns401(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0")
+	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0", "asd123")
 
 	if err == nil {
 		t.Fatalf("Expected an error to be returned")

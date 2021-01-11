@@ -59,7 +59,8 @@ func initLogger() {
 // Execute runs command parsing chain
 func Execute(version string, commit string) {
 	rootCmd.Version = fmt.Sprintf("%s (%s)", version, commit)
-	displayOptions.Version = fmt.Sprintf("%s-%s", version, commit)
+	displayOptions.Version = version
+	displayOptions.CommitHash = commit
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
