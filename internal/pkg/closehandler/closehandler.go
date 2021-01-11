@@ -18,7 +18,7 @@ func SetupCloseHandler(feedbackFormURL string) {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	terminalState, err := terminal.GetState(int(os.Stdin.Fd()))
 	if err != nil {
-		communication.LogFatalErr("Error saving terminal state", err)
+		communication.LogWarnErr("Error saving terminal state", err)
 	}
 
 	go func() {
@@ -26,7 +26,6 @@ func SetupCloseHandler(feedbackFormURL string) {
 		if terminalState != nil {
 			terminal.Restore(int(os.Stdin.Fd()), terminalState)
 		}
-		communication.PrintGoodbyeMessage()
 		if successfulConnectionOccured {
 			communication.PrintFeedbackMessage(feedbackFormURL)
 		}

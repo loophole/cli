@@ -1,0 +1,8 @@
+.logsCardContent {
+  max-height: 300px;
+  overflow-y: scroll;
+
+  @media (min-width: 641px) {
+    max-height: 500px;
+  }
+}

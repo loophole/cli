@@ -1,162 +1,112 @@
 package communication
 
 import (
-	"fmt"
-	"sync"
-	"time"
-
-	"github.com/briandowns/spinner"
-	"github.com/logrusorgru/aurora"
-	"github.com/loophole/cli/internal/pkg/urlmaker"
-	"github.com/mattn/go-colorable"
-	"github.com/mdp/qrterminal/v3"
-	"github.com/rs/zerolog/log"
+	tm "github.com/loophole/cli/internal/pkg/token/models"
 )
 
-var colorableOutput = colorable.NewColorableStdout()
-var loader = spinner.New(spinner.CharSets[9], 100*time.Millisecond, spinner.WithWriter(colorableOutput))
-var MessageMutex sync.Mutex
+var communicationMechanism Mechanism = NewStdOutLogger()
 
-func PrintWelcomeMessage() {
-	MessageMutex.Lock()
-	fmt.Fprint(colorableOutput, aurora.Cyan("Loophole"))
-	fmt.Fprint(colorableOutput, aurora.Italic(" - End to end TLS encrypted TCP communication between you and your clients"))
+type Mechanism interface {
+	PrintLoginPrompt(tm.DeviceCodeSpec)
+	PrintWelcomeMessage(bool)
+	PrintTunnelSuccessMessage(siteID string, protocols []string, localAddr string, displayQR bool)
+	PrintGoodbyeMessage()
+	PrintFeedbackMessage(feedbackFormURL string)
+	StartLoading(message string)
+	LoadingSuccess()
+	LoadingFailure()
+	LogInfo(message string)
+	LogWarnErr(message string, err error)
+	LogFatalErr(message string, err error)
+	LogFatalMsg(message string)
+	LogDebug(message string)
 	NewLine()
-	NewLine()
-	MessageMutex.Unlock()
+	Write(message string)
+	WriteRed(message string)
+	WriteGreen(message string)
+	WriteCyan(message string)
+	WriteItalic(message string)
+	QRCode(siteAddr string)
+}
+
+func SetCommunicationMechanism(mechanism Mechanism) {
+	communicationMechanism = mechanism
+}
+
+func PrintLoginPrompt(deviceCodeSpec tm.DeviceCodeSpec) {
+	communicationMechanism.PrintLoginPrompt(deviceCodeSpec)
+}
+
+func PrintWelcomeMessage(loggedIn bool) {
+	communicationMechanism.PrintWelcomeMessage(loggedIn)
 }
 
 func PrintTunnelSuccessMessage(siteID string, protocols []string, localAddr string, displayQR bool) {
-	MessageMutex.Lock()
-	NewLine()
-
-	if len(protocols) < 1 {
-		protocols = []string{"https"}
-	}
-
-	for _, protocol := range protocols {
-		NewLine()
-		siteAddr := urlmaker.GetSiteURL(protocol, siteID)
-		fmt.Fprint(colorableOutput, "Forwarding ")
-		fmt.Fprint(colorableOutput, aurora.Green(siteAddr))
-		fmt.Fprint(colorableOutput, " -> ")
-		fmt.Fprint(colorableOutput, aurora.Green(localAddr))
-	}
-
-	if displayQR {
-		NewLine()
-		NewLine()
-		Write("Scan the below QR code to open the site:")
-		NewLine()
-		QRCode(urlmaker.GetSiteURL(protocols[0], siteID))
-	}
-
-	if len(protocols) > 1 {
-		NewLine()
-		NewLine()
-		fmt.Fprint(colorableOutput, "Choose the protocol suitable for your target OS and share it")
-		NewLine()
-	}
-
-	NewLine()
-	WriteCyan("Press CTRL + C to stop the service")
-	NewLine()
-	Write("Logs:")
-
-	log.Info().Msg("Awaiting connections...")
-	MessageMutex.Unlock()
+	communicationMechanism.PrintTunnelSuccessMessage(siteID, protocols, localAddr, displayQR)
 }
 
 func PrintGoodbyeMessage() {
-	MessageMutex.Lock()
-	NewLine()
-	Write("Goodbye")
-	MessageMutex.Unlock()
+	communicationMechanism.PrintGoodbyeMessage()
 }
 
 func PrintFeedbackMessage(feedbackFormURL string) {
-	MessageMutex.Lock()
-	fmt.Fprintln(colorableOutput, aurora.Cyan(fmt.Sprintf("Thank you for using Loophole. Please give us your feedback via %s and help us improve our services.", feedbackFormURL)))
-	MessageMutex.Unlock()
+	communicationMechanism.PrintFeedbackMessage(feedbackFormURL)
 }
 
 func StartLoading(message string) {
-	if el := log.Debug(); !el.Enabled() {
-		loader.Prefix = fmt.Sprintf("%s ", message)
-		loader.Start()
-	} else {
-		MessageMutex.Lock()
-		Write(message)
-		MessageMutex.Unlock()
-	}
+	communicationMechanism.StartLoading(message)
 }
 
 func LoadingSuccess() {
-	if el := log.Debug(); !el.Enabled() {
-		loader.FinalMSG = fmt.Sprintf("%s%s\n", loader.Prefix, aurora.Green("Success!"))
-		loader.Stop()
-	}
+	communicationMechanism.LoadingSuccess()
 }
 
 func LoadingFailure() {
-	if el := log.Debug(); !el.Enabled() {
-		loader.FinalMSG = fmt.Sprintf("%s%s\n", loader.Prefix, aurora.Red("Error!"))
-		loader.Stop()
-	}
+	communicationMechanism.LoadingFailure()
 }
 
 func LogInfo(message string) {
-	MessageMutex.Lock()
-	log.Info().Msg(message)
-	MessageMutex.Unlock()
+	communicationMechanism.LogInfo(message)
 }
 
+func LogWarnErr(message string, err error) {
+	communicationMechanism.LogWarnErr(message, err)
+}
 func LogFatalErr(message string, err error) {
-	MessageMutex.Lock()
-	log.Fatal().Err(err).Msg(message)
-	MessageMutex.Unlock()
+	communicationMechanism.LogFatalErr(message, err)
 }
 
 func LogFatalMsg(message string) {
-	MessageMutex.Lock()
-	log.Fatal().Msg(message)
-	MessageMutex.Unlock()
+	communicationMechanism.LogFatalMsg(message)
 }
 
 func LogDebug(message string) {
-	MessageMutex.Lock()
-	log.Debug().Msg(message)
-	MessageMutex.Unlock()
+	communicationMechanism.LogDebug(message)
 }
 
 func NewLine() {
-	fmt.Fprintln(colorableOutput)
+	communicationMechanism.NewLine()
 }
 
 func Write(message string) {
-	fmt.Fprint(colorableOutput, fmt.Sprintf("%s", message))
-	NewLine()
+	communicationMechanism.Write(message)
 }
 
 func WriteRed(message string) {
-	fmt.Fprint(colorableOutput, fmt.Sprintf("%s", aurora.Red(message)))
-	NewLine()
+	communicationMechanism.WriteRed(message)
 }
 func WriteGreen(message string) {
-	fmt.Fprint(colorableOutput, fmt.Sprintf("%s", aurora.Green(message)))
-	NewLine()
+	communicationMechanism.WriteGreen(message)
 }
 
 func WriteCyan(message string) {
-	fmt.Fprint(colorableOutput, fmt.Sprintf("%s", aurora.Cyan(message)))
-	NewLine()
+	communicationMechanism.WriteCyan(message)
 }
 
 func WriteItalic(message string) {
-	fmt.Fprint(colorableOutput, fmt.Sprintf("%s", aurora.Italic(message)))
-	NewLine()
+	communicationMechanism.WriteItalic(message)
 }
 
 func QRCode(siteAddr string) {
-	qrterminal.GenerateHalfBlock(siteAddr, qrterminal.L, colorableOutput)
+	communicationMechanism.QRCode(siteAddr)
 }

@@ -1,3 +1,5 @@
+// +build !desktop
+
 package cmd
 
 import (
@@ -28,7 +30,9 @@ Running this command as logged in user will fail, in cae you want to relogin the
 		if err != nil {
 			communication.LogFatalErr("Error obtaining device code", err)
 		}
-		tokens, err := token.PollForToken(deviceCodeSpec.DeviceCode, deviceCodeSpec.Interval)
+		communication.PrintLoginPrompt(*deviceCodeSpec)
+		quitChannel := make(chan bool)
+		tokens, err := token.PollForToken(deviceCodeSpec.DeviceCode, deviceCodeSpec.Interval, quitChannel)
 		if err != nil {
 			communication.LogFatalErr("Error obtaining token", err)
 		}
