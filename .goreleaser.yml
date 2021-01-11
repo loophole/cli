@@ -43,7 +43,7 @@ builds:
   flags:
   - -tags=skippkger
   hooks:
-    post: gon gon-cli.hcl
+    post: gon -log-level=debug gon-cli.hcl
 
 - id: loophole-desktop-linux
   binary: loophole-desktop
@@ -70,7 +70,7 @@ builds:
   flags:
   - -tags=desktop
   hooks:
-    post: gon gon-desktop.hcl
+    post: gon -log-level=debug  gon-desktop.hcl
 
 - id: loophole-desktop-win
   binary: loophole-desktop
