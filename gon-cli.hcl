@@ -9,3 +9,12 @@ apple_id {
 sign {
   application_identity = "Developer ID Application: Main Development GmbH"
 }
+
+zip {
+  output_path = "./dist/loophole-cli_macos.zip"
+}
+
+dmg {
+  output_path = "./dist/loophole-cli_macos.dmg"
+  volume_name = "Loophole"
+}
