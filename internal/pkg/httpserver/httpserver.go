@@ -58,6 +58,7 @@ type ProxyServerBuilder interface {
 	ToEndpoint(lm.Endpoint) ProxyServerBuilder
 	WithBasicAuth(string, string) ProxyServerBuilder
 	DisableProxyErrorPage() ProxyServerBuilder
+	EnableInsecureHTTPSBackend() ProxyServerBuilder
 	Build() (*http.Server, error)
 }
 type proxyServerBuilder struct {
@@ -67,6 +68,7 @@ type proxyServerBuilder struct {
 	basicAuthUsername     string
 	basicAuthPassword     string
 	disableProxyErrorPage bool
+	disableCertCheck      bool
 }
 
 func (psb *proxyServerBuilder) ToEndpoint(endpoint lm.Endpoint) ProxyServerBuilder {
@@ -86,6 +88,11 @@ func (psb *proxyServerBuilder) DisableProxyErrorPage() ProxyServerBuilder {
 	return psb
 }
 
+func (psb *proxyServerBuilder) EnableInsecureHTTPSBackend() ProxyServerBuilder {
+	psb.disableCertCheck = true
+	return psb
+}
+
 func (psb *proxyServerBuilder) Build() (*http.Server, error) {
 	proxy := httputil.NewSingleHostReverseProxy(&url.URL{
 		Scheme: psb.endpoint.Protocol,
@@ -93,6 +100,12 @@ func (psb *proxyServerBuilder) Build() (*http.Server, error) {
 	})
 	if !psb.disableProxyErrorPage {
 		proxy.ErrorHandler = proxyErrorHandler
+	}
+
+	if psb.disableCertCheck {
+		proxy.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
 	}
 
 	var server *http.Server
