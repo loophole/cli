@@ -30,9 +30,16 @@ var signalChan chan os.Signal
 
 var alreadyRunning bool
 
-const http = "Expose an HTTP Port"
-const path = "Expose a local path"
-const webDAV = "Expose a local path with WebDAV"
+//Possible answers for prompts and error messages
+const (
+	AnswerTunnelTypeHTTP   string = "Expose an HTTP Port"
+	AnswerTunnelTypePath   string = "Expose a local path"
+	AnswerTunnelTypeWebDAV string = "Expose a local path with WebDAV"
+	AnswerYes              string = "Yes"
+	AnswerNo               string = "No"
+	PortRangeErrorMsg      string = "port must be between 0-65535"
+	PathValidityErrorMsg   string = "enter an existing path without any quotation marks"
+)
 
 var rootCmd = &cobra.Command{
 	Use:   "loophole",
@@ -53,14 +60,14 @@ func getPortPrompt() []*survey.Question {
 			Prompt: &survey.Input{Message: "Please enter the http port you want to expose: "},
 			Validate: func(val interface{}) error {
 				if port, ok := val.(string); !ok {
-					return errors.New("port must be between 0-65535")
+					return errors.New(PortRangeErrorMsg)
 				} else { //else is necessary here to keep access to port
 					n, err := strconv.Atoi(port)
 					if err != nil {
-						return errors.New("port must be between 0-65535")
+						return errors.New(PortRangeErrorMsg)
 					}
 					if (n < 0) || (n > 65535) {
-						return errors.New("port must be between 0-65535")
+						return errors.New(PortRangeErrorMsg)
 					}
 				}
 
@@ -77,17 +84,17 @@ func getPathPrompt() []*survey.Question {
 			Prompt: &survey.Input{Message: "Please enter the path you want to expose: "},
 			Validate: func(val interface{}) error {
 				if path, ok := val.(string); !ok {
-					return errors.New("enter an existing path without any quotation marks")
+					return errors.New(PathValidityErrorMsg)
 				} else { //else is necessary here to keep access to path
 					_, err := os.Stat(path)
 					if err == nil {
 						return nil
 					}
-					return errors.New("enter an existing path without any quotation marks")
+					return errors.New(PathValidityErrorMsg)
 				}
 			},
 			Transform: survey.TransformString(func(ans string) string {
-				return fmt.Sprintf("'%s'", ans)
+				return fmt.Sprintf("'%s'", ans) //adding quotation marks to the given answer to prevent issues with spaces in paths
 			}),
 		},
 	}
@@ -95,15 +102,15 @@ func getPathPrompt() []*survey.Question {
 
 func getLastArgsPrompt(lastArgs string) *survey.Select {
 	return &survey.Select{
-		Message: "Your last settings were: '" + lastArgs + "', would you like to reuse them?",
-		Options: []string{"Yes", "No"},
+		Message: fmt.Sprintf("Your last settings were: '%s', would you like to reuse them?", lastArgs),
+		Options: []string{AnswerYes, AnswerNo},
 	}
 }
 
 func getInitialPrompt() *survey.Select {
 	return &survey.Select{
 		Message: "Welcome to loophole. What do you want to do?",
-		Options: []string{http, path, webDAV},
+		Options: []string{AnswerTunnelTypeHTTP, AnswerTunnelTypePath, AnswerTunnelTypeWebDAV},
 	}
 }
 
@@ -111,7 +118,7 @@ func askBasicAuth() string {
 	res := ""
 	prompt := &survey.Select{
 		Message: "Do you want to secure your tunnel using a username and password?",
-		Options: []string{"No", "Yes"},
+		Options: []string{AnswerNo, AnswerYes},
 	}
 	var usernamePrompt = []*survey.Question{
 		{
@@ -123,7 +130,7 @@ func askBasicAuth() string {
 	if err != nil {
 		signalChan <- nil
 	}
-	if res == "Yes" {
+	if res == AnswerYes {
 		err = survey.Ask(usernamePrompt, &res)
 		if err != nil {
 			os.Exit(0)
@@ -139,16 +146,16 @@ func askHostname() string {
 	res := ""
 	prompt := &survey.Select{
 		Message: "Do you want to use a custom hostname?",
-		Options: []string{"No", "Yes"},
+		Options: []string{AnswerNo, AnswerYes},
 	}
 	var hostnamePrompt = []*survey.Question{
 		{
 			Name:   "hostname",
 			Prompt: &survey.Input{Message: "Please enter the hostname you want to use: "},
 			Validate: func(val interface{}) error {
-				var validChars = regexp.MustCompile(`^[a-z0-9]+$`).MatchString
-				if hostname, ok := val.(string); !ok || len(hostname) > 31 || len(hostname) < 6 || !validChars(hostname) || !unicode.IsLetter(rune(hostname[0])) {
-					return errors.New("hostname must be between 6-31 characters, may only contain lowercase letters and numbers and must start with a letter")
+				var validChars = regexp.MustCompile(`^[a-z][a-z0-9]{0,30}$`).MatchString
+				if hostname, ok := val.(string); !ok || len(hostname) > 31 || !validChars(hostname) || !unicode.IsLetter(rune(hostname[0])) {
+					return errors.New("hostname must be up to 31 characters, may only contain lowercase letters and numbers and must start with a letter")
 				}
 
 				return nil
@@ -159,7 +166,7 @@ func askHostname() string {
 	if err != nil {
 		signalChan <- nil
 	}
-	if res == "Yes" {
+	if res == AnswerYes {
 		err = survey.Ask(hostnamePrompt, &res)
 		if err != nil {
 			os.Exit(0)
@@ -198,7 +205,7 @@ func interactivePrompt() {
 		if err != nil {
 			signalChan <- nil
 		}
-		if res == "Yes" {
+		if res == AnswerYes {
 			cmd.SetArgs(strings.Split(lastArgs, " ")) //needs validation
 			cmd.Execute()
 			os.Exit(1)
@@ -210,19 +217,19 @@ func interactivePrompt() {
 		signalChan <- nil
 	}
 	switch res {
-	case http:
+	case AnswerTunnelTypeHTTP:
 		err = survey.Ask(portPrompt, &exposePort)
 		if err != nil {
 			signalChan <- nil
 		}
 		arguments = []string{"http", strconv.Itoa(exposePort)}
-	case path:
+	case AnswerTunnelTypePath:
 		err = survey.Ask(pathPrompt, &exposePath)
 		if err != nil {
 			signalChan <- nil
 		}
 		arguments = []string{"path", exposePath}
-	case webDAV:
+	case AnswerTunnelTypeWebDAV:
 		err = survey.Ask(pathPrompt, &exposePath)
 		if err != nil {
 			signalChan <- nil
@@ -236,10 +243,10 @@ func interactivePrompt() {
 	}
 	basicAuth := askBasicAuth()
 	if basicAuth != "" {
-		arguments = append(arguments, "-u", basicAuth)
+		arguments = append(arguments, "--basic-auth-username", basicAuth)
 	}
-	closehandler.SaveArguments(arguments)
 	cmd.SetArgs(arguments)
+	closehandler.SaveArguments(arguments)
 	cmd.Execute()
 }
 
