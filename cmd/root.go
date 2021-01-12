@@ -93,9 +93,6 @@ func getPathPrompt() []*survey.Question {
 					return errors.New(PathValidityErrorMsg)
 				}
 			},
-			Transform: survey.TransformString(func(ans string) string {
-				return fmt.Sprintf("'%s'", ans) //adding quotation marks to the given answer to prevent issues with spaces in paths
-			}),
 		},
 	}
 }
@@ -246,7 +243,23 @@ func interactivePrompt() {
 		arguments = append(arguments, "--basic-auth-username", basicAuth)
 	}
 	cmd.SetArgs(arguments)
-	closehandler.SaveArguments(arguments)
+
+	var argumentsWithQuotes []string
+	//setting the path argument in code doesn't work when it contains quotation marks,
+	//but they do need to be there when entered as a standalone command in a command line if the path contains spaces
+	//so, we give a copy of the arguments to the closehandler, with the path in quotation marks, where necessary
+	if strings.Contains(exposePath, " ") {
+		for i := 0; i < len(arguments); i++ {
+			if arguments[i] == exposePath {
+				argumentsWithQuotes = append(argumentsWithQuotes, fmt.Sprintf("'%s'", exposePath))
+			} else {
+				argumentsWithQuotes = append(argumentsWithQuotes, arguments[i])
+			}
+		}
+		closehandler.SaveArguments(argumentsWithQuotes)
+	} else {
+		closehandler.SaveArguments(arguments)
+	}
 	cmd.Execute()
 }
 
