@@ -34,6 +34,9 @@ func SetupCloseHandler(feedbackFormURL string) chan os.Signal {
 		communication.PrintGoodbyeMessage()
 		if interactiveArgs != "" {
 			communication.LogInfo(fmt.Sprintf("Next time, add the following to loophole to start a tunnel with the same settings: %s", interactiveArgs))
+			if strings.Contains(interactiveArgs, "--basic-auth-username") {
+				communication.LogInfo("If you want to provide the password as well instead of typing it into the terminal, also add --basic-auth-password <your password>")
+			}
 			argFile := cache.GetLocalStorageFile("lastArgs", "logs")
 			ioutil.WriteFile(argFile, []byte(interactiveArgs), 0644)
 		}
