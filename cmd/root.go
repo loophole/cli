@@ -1,3 +1,5 @@
+// +build !desktop
+
 package cmd
 
 import (
@@ -6,17 +8,14 @@ import (
 	"os"
 	"time"
 
-	lm "github.com/loophole/cli/internal/app/loophole/models"
+	"github.com/loophole/cli/config"
 	"github.com/loophole/cli/internal/pkg/cache"
-	"github.com/loophole/cli/internal/pkg/closehandler"
 	"github.com/mattn/go-colorable"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"github.com/spf13/cobra"
 )
-
-var displayOptions lm.DisplayOptions
 
 var rootCmd = &cobra.Command{
 	Use:   "loophole",
@@ -30,9 +29,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	cobra.OnInitialize(initLogger)
 
-	displayOptions.FeedbackFormURL = "https://forms.gle/K9ga7FZB3deaffnV7"
-	closehandler.SetupCloseHandler(displayOptions.FeedbackFormURL)
-	rootCmd.PersistentFlags().BoolVarP(&displayOptions.Verbose, "verbose", "v", false, "verbose output")
+	rootCmd.PersistentFlags().BoolVarP(&config.Config.Display.Verbose, "verbose", "v", false, "verbose output")
 }
 
 func initLogger() {
@@ -48,7 +45,8 @@ func initLogger() {
 	log.Logger = zerolog.New(multi).With().Timestamp().Logger()
 
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	if displayOptions.Verbose {
+	if config.Config.Display.Verbose {
+		fmt.Println("Changing logging level to debug")
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
@@ -57,10 +55,9 @@ func initLogger() {
 }
 
 // Execute runs command parsing chain
-func Execute(version string, commit string) {
-	rootCmd.Version = fmt.Sprintf("%s (%s)", version, commit)
-	displayOptions.Version = version
-	displayOptions.CommitHash = commit
+func Execute() {
+	rootCmd.Version = fmt.Sprintf("%s (%s)", config.Config.Version, config.Config.CommitHash)
+
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

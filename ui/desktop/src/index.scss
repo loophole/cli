@@ -1,0 +1,111 @@
+// Colors
+
+$black: hsl(0, 0%, 4%) !default;
+$black-bis: hsl(0, 0%, 7%) !default;
+$black-ter: hsl(0, 0%, 14%) !default;
+
+$grey-darker: hsl(0, 0%, 21%) !default;
+$grey-dark: hsl(0, 0%, 29%) !default;
+$grey: hsl(0, 0%, 48%) !default;
+$grey-light: hsl(0, 0%, 71%) !default;
+$grey-lighter: hsl(0, 0%, 86%) !default;
+$grey-lightest: hsl(0, 0%, 93%) !default;
+
+$white-ter: hsl(0, 0%, 96%) !default;
+$white-bis: hsl(0, 0%, 98%) !default;
+$white: hsl(0, 0%, 100%) !default;
+
+$orange: hsl(14, 100%, 53%) !default;
+$yellow: hsl(48, 100%, 67%) !default;
+$green: hsl(141, 53%, 53%) !default;
+$turquoise: hsl(171, 100%, 41%) !default;
+$cyan: hsl(204, 71%, 53%) !default;
+$blue: hsl(217, 71%, 53%) !default;
+$purple: hsl(271, 100%, 71%) !default;
+$red: hsl(348, 86%, 61%) !default;
+
+$primary: $cyan;
+
+$info: $turquoise;
+$success: $green;
+$warning: $yellow;
+$danger: $red;
+
+$light: $white-ter;
+$dark: $grey-darker;
+
+$link: $blue;
+$link-visited: $purple;
+
+$link-hover: $grey-darker;
+$link-hover-border: $grey-light;
+
+$link-focus: $grey-darker;
+$link-focus-border: $blue;
+
+$link-active: $grey-darker;
+$link-active-border: $grey-dark;
+
+@import "~bulma";
+
+@import "~@fortawesome/fontawesome-free/scss/fontawesome.scss";
+@import "~@fortawesome/fontawesome-free//scss/solid.scss";
+@import "~@fortawesome/fontawesome-free//scss/regular.scss";
+@import "~@fortawesome/fontawesome-free//scss/brands.scss";
+
+// Remove when bulma is 0.9.2
+$button-ghost-background: none;
+$button-ghost-border-color: transparent;
+$button-ghost-color: $link;
+$button-ghost-decoration: none;
+$button-ghost-hover-color: $link;
+$button-ghost-hover-decoration: underline;
+
+.button.is-ghost {
+  background: $button-ghost-background;
+  border-color: $button-ghost-border-color;
+  color: $button-ghost-color;
+  text-decoration: $button-ghost-decoration;
+  &:hover,
+  &.is-hovered {
+    color: $button-ghost-hover-color;
+    text-decoration: $button-ghost-hover-decoration;
+  }
+}
+
+html {
+  overflow: hidden;
+  height: 100%;
+  body {
+    @media screen and (max-width: 768px) {
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    height: inherit;
+    #root {
+      height: inherit;
+
+      > .section {
+        height: inherit;
+        > .columns {
+          height: inherit;
+          > .column.is-9 {
+            height: inherit;
+            > .container {
+              height: inherit;
+              > .context-box {
+                @media screen and (min-width: 769px) {
+                  overflow-y: auto;
+                  overflow-x: hidden;
+                }
+                height: 85%;
+                padding: 1rem;
+                margin-bottom: 1rem;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

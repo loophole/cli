@@ -1,162 +1,174 @@
 package communication
 
 import (
-	"fmt"
-	"sync"
-	"time"
-
-	"github.com/briandowns/spinner"
-	"github.com/logrusorgru/aurora"
-	"github.com/loophole/cli/internal/pkg/urlmaker"
-	"github.com/mattn/go-colorable"
-	"github.com/mdp/qrterminal/v3"
-	"github.com/rs/zerolog/log"
+	coreModels "github.com/loophole/cli/internal/app/loophole/models"
+	authModels "github.com/loophole/cli/internal/pkg/token/models"
 )
 
-var colorableOutput = colorable.NewColorableStdout()
-var loader = spinner.New(spinner.CharSets[9], 100*time.Millisecond, spinner.WithWriter(colorableOutput))
-var MessageMutex sync.Mutex
+var defaultLogger = NewStdOutLogger()
+var communicationMechanism Mechanism = defaultLogger
 
-func PrintWelcomeMessage() {
-	MessageMutex.Lock()
-	fmt.Fprint(colorableOutput, aurora.Cyan("Loophole"))
-	fmt.Fprint(colorableOutput, aurora.Italic(" - End to end TLS encrypted TCP communication between you and your clients"))
-	NewLine()
-	NewLine()
-	MessageMutex.Unlock()
+// Mechanism is a type defining interface for loophole communication
+type Mechanism interface {
+	Debug(message string)
+	Info(message string)
+	Warn(message string)
+	Error(message string)
+	Fatal(message string)
+
+	TunnelDebug(tunnelID string, message string)
+	TunnelInfo(tunnelID string, message string)
+	TunnelWarn(tunnelID string, message string)
+	TunnelError(tunnelID string, message string)
+
+	ApplicationStart(loggedIn bool, idToken string)
+	ApplicationStop()
+
+	TunnelStart(tunnelID string)
+
+	TunnelStartSuccess(remoteConfig coreModels.RemoteEndpointSpecs, localEndpoint string)
+	TunnelStartFailure(tunnelID string, err error)
+
+	TunnelStopSuccess(tunnelID string)
+
+	LoginStart(authModels.DeviceCodeSpec)
+	LoginSuccess(idToken string)
+	LoginFailure(err error)
+
+	LogoutSuccess()
+	LogoutFailure(err error)
+
+	LoadingStart(tunnelID string, loaderMessage string)
+	LoadingSuccess(tunnelID string)
+	LoadingFailure(tunnelID string, err error)
+
+	NewVersionAvailable(availableVersion string)
 }
 
-func PrintTunnelSuccessMessage(siteID string, protocols []string, localAddr string, displayQR bool) {
-	MessageMutex.Lock()
-	NewLine()
-
-	if len(protocols) < 1 {
-		protocols = []string{"https"}
-	}
-
-	for _, protocol := range protocols {
-		NewLine()
-		siteAddr := urlmaker.GetSiteURL(protocol, siteID)
-		fmt.Fprint(colorableOutput, "Forwarding ")
-		fmt.Fprint(colorableOutput, aurora.Green(siteAddr))
-		fmt.Fprint(colorableOutput, " -> ")
-		fmt.Fprint(colorableOutput, aurora.Green(localAddr))
-	}
-
-	if displayQR {
-		NewLine()
-		NewLine()
-		Write("Scan the below QR code to open the site:")
-		NewLine()
-		QRCode(urlmaker.GetSiteURL(protocols[0], siteID))
-	}
-
-	if len(protocols) > 1 {
-		NewLine()
-		NewLine()
-		fmt.Fprint(colorableOutput, "Choose the protocol suitable for your target OS and share it")
-		NewLine()
-	}
-
-	NewLine()
-	WriteCyan("Press CTRL + C to stop the service")
-	NewLine()
-	Write("Logs:")
-
-	log.Info().Msg("Awaiting connections...")
-	MessageMutex.Unlock()
+// SetCommunicationMechanism is communication mechanism switcher
+func SetCommunicationMechanism(mechanism Mechanism) {
+	communicationMechanism = mechanism
 }
 
-func PrintGoodbyeMessage() {
-	MessageMutex.Lock()
-	NewLine()
-	Write("Goodbye")
-	MessageMutex.Unlock()
+// TunnelDebug is debug level logger in context of a tunnel
+func TunnelDebug(tunnelID string, message string) {
+	communicationMechanism.TunnelDebug(tunnelID, message)
 }
 
-func PrintFeedbackMessage(feedbackFormURL string) {
-	MessageMutex.Lock()
-	fmt.Fprintln(colorableOutput, aurora.Cyan(fmt.Sprintf("Thank you for using Loophole. Please give us your feedback via %s and help us improve our services.", feedbackFormURL)))
-	MessageMutex.Unlock()
+// TunnelInfo is info level logger in context of a tunnel
+func TunnelInfo(tunnelID string, message string) {
+	communicationMechanism.TunnelInfo(tunnelID, message)
 }
 
-func StartLoading(message string) {
-	if el := log.Debug(); !el.Enabled() {
-		loader.Prefix = fmt.Sprintf("%s ", message)
-		loader.Start()
-	} else {
-		MessageMutex.Lock()
-		Write(message)
-		MessageMutex.Unlock()
-	}
+// TunnelWarn is warn level logger in context of a tunnel
+func TunnelWarn(tunnelID string, message string) {
+	communicationMechanism.TunnelWarn(tunnelID, message)
 }
 
-func LoadingSuccess() {
-	if el := log.Debug(); !el.Enabled() {
-		loader.FinalMSG = fmt.Sprintf("%s%s\n", loader.Prefix, aurora.Green("Success!"))
-		loader.Stop()
-	}
+// TunnelError is error level logger in context of a tunnel
+func TunnelError(tunnelID string, message string) {
+	communicationMechanism.TunnelError(tunnelID, message)
 }
 
-func LoadingFailure() {
-	if el := log.Debug(); !el.Enabled() {
-		loader.FinalMSG = fmt.Sprintf("%s%s\n", loader.Prefix, aurora.Red("Error!"))
-		loader.Stop()
-	}
+// Debug is debug level logger
+func Debug(message string) {
+	communicationMechanism.Debug(message)
 }
 
-func LogInfo(message string) {
-	MessageMutex.Lock()
-	log.Info().Msg(message)
-	MessageMutex.Unlock()
+// Info is info level logger
+func Info(message string) {
+	communicationMechanism.Info(message)
 }
 
-func LogFatalErr(message string, err error) {
-	MessageMutex.Lock()
-	log.Fatal().Err(err).Msg(message)
-	MessageMutex.Unlock()
+// Warn is warn level logger
+func Warn(message string) {
+	communicationMechanism.Warn(message)
 }
 
-func LogFatalMsg(message string) {
-	MessageMutex.Lock()
-	log.Fatal().Msg(message)
-	MessageMutex.Unlock()
+// Error is error level logger
+func Error(message string) {
+	communicationMechanism.Error(message)
 }
 
-func LogDebug(message string) {
-	MessageMutex.Lock()
-	log.Debug().Msg(message)
-	MessageMutex.Unlock()
+// Fatal is fatal level logger, which should cause application to stop
+func Fatal(message string) {
+	communicationMechanism.Fatal(message)
 }
 
-func NewLine() {
-	fmt.Fprintln(colorableOutput)
+// ApplicationStart is the application startup welcome communicate
+func ApplicationStart(loggedIn bool, idToken string) {
+	communicationMechanism.ApplicationStart(loggedIn, idToken)
 }
 
-func Write(message string) {
-	fmt.Fprint(colorableOutput, fmt.Sprintf("%s", message))
-	NewLine()
+// ApplicationStop is the application startup goodbye communicate
+func ApplicationStop() {
+	communicationMechanism.ApplicationStop()
 }
 
-func WriteRed(message string) {
-	fmt.Fprint(colorableOutput, fmt.Sprintf("%s", aurora.Red(message)))
-	NewLine()
-}
-func WriteGreen(message string) {
-	fmt.Fprint(colorableOutput, fmt.Sprintf("%s", aurora.Green(message)))
-	NewLine()
+// LoginStart is the communicate to notify about login process being started
+func LoginStart(deviceCodeSpec authModels.DeviceCodeSpec) {
+	communicationMechanism.LoginStart(deviceCodeSpec)
 }
 
-func WriteCyan(message string) {
-	fmt.Fprint(colorableOutput, fmt.Sprintf("%s", aurora.Cyan(message)))
-	NewLine()
+// LoginSuccess is the application success login communicate
+func LoginSuccess(idToken string) {
+	communicationMechanism.LoginSuccess(idToken)
 }
 
-func WriteItalic(message string) {
-	fmt.Fprint(colorableOutput, fmt.Sprintf("%s", aurora.Italic(message)))
-	NewLine()
+// LoginFailure is the application login failure communicate
+func LoginFailure(err error) {
+	communicationMechanism.LoginFailure(err)
 }
 
-func QRCode(siteAddr string) {
-	qrterminal.GenerateHalfBlock(siteAddr, qrterminal.L, colorableOutput)
+// LogoutSuccess is the notification logout success communicate
+func LogoutSuccess() {
+	communicationMechanism.LogoutSuccess()
+}
+
+// LogoutFailure is the notification logout failure communicate
+func LogoutFailure(err error) {
+	communicationMechanism.LogoutFailure(err)
+}
+
+// TunnelStart is the notification about tunnel registration success
+func TunnelStart(tunnelID string) {
+	communicationMechanism.TunnelStart(tunnelID)
+}
+
+// TunnelStartSuccess is the notification about tunnel being started succesfully
+func TunnelStartSuccess(remoteConfig coreModels.RemoteEndpointSpecs, localEndpoint string) {
+	communicationMechanism.TunnelStartSuccess(remoteConfig, localEndpoint)
+}
+
+// TunnelStartFailure is the notification about tunnel failing to start
+func TunnelStartFailure(tunnelID string, err error) {
+	communicationMechanism.TunnelStartFailure(tunnelID, err)
+}
+
+// TunnelRestart is the notification about tunnel being restarted
+func TunnelRestart(tunnelID string) {}
+
+// TunnelStopSuccess is the notification about tunnel being shut down
+func TunnelStopSuccess(tunnelID string) {
+	communicationMechanism.TunnelStopSuccess(tunnelID)
+}
+
+// LoadingStart is the notification about some loading process being started
+func LoadingStart(tunnelID string, loaderMessage string) {
+	communicationMechanism.LoadingStart(tunnelID, loaderMessage)
+}
+
+// LoadingSuccess is the notification about started loading process being finished successfully
+func LoadingSuccess(tunnelID string) {
+	communicationMechanism.LoadingSuccess(tunnelID)
+}
+
+// LoadingFailure is the notification about started loading process being finished with failure
+func LoadingFailure(tunnelID string, err error) {
+	communicationMechanism.LoadingFailure(tunnelID, err)
+}
+
+// NewVersionAvailable is a communicate being sent if new version of the application is available
+func NewVersionAvailable(availableVersion string) {
+	communicationMechanism.NewVersionAvailable(availableVersion)
 }

@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@creativebulma/bulma-tooltip": "^1.2.0",
+    "@types/qrcode.react": "^1.0.1",
+    "@types/react-copy-to-clipboard": "^5.0.0",
+    "@types/redux-logger": "^3.0.8",
+    "@types/uuid": "^8.3.0",
+    "uuid": "^8.3.2"
+  }
+}

@@ -15,5 +15,4 @@ func GetSiteURL(protocol string, siteID string) string {
 // GetSiteFQDN produces fully qualified domain name for the site (without the protocol)
 func GetSiteFQDN(siteID string) string {
 	return fmt.Sprintf("%s.%s", siteID, HostURL)
-
 }

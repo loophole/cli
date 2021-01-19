@@ -1,3 +1,5 @@
+// +build !desktop
+
 package cmd
 
 import (
@@ -20,23 +22,25 @@ Running this command as not logged in user will prompt you to open URL and use t
 Running this command as logged in user will fail, in cae you want to relogin then you need to log out first`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if token.IsTokenSaved() {
-			communication.LogFatalMsg(fmt.Sprintf("Already logged in, please use `%s account logout` first to re-login", os.Args[0]))
-			os.Exit(1)
+			communication.LoginFailure(fmt.Errorf("Already logged in, please use `%s account logout` first to re-login", os.Args[0]))
 		}
 
 		deviceCodeSpec, err := token.RegisterDevice()
 		if err != nil {
-			communication.LogFatalErr("Error obtaining device code", err)
+			communication.LoginFailure(fmt.Errorf("Error obtaining device code: %s", err.Error()))
 		}
-		tokens, err := token.PollForToken(deviceCodeSpec.DeviceCode, deviceCodeSpec.Interval)
+		communication.LoginStart(*deviceCodeSpec)
+		quitChannel := make(chan bool)
+		tokens, err := token.PollForToken(deviceCodeSpec.DeviceCode, deviceCodeSpec.Interval, quitChannel)
 		if err != nil {
-			communication.LogFatalErr("Error obtaining token", err)
+			communication.LoginFailure(fmt.Errorf("Error obtaining token: %s", err.Error()))
 		}
 		err = token.SaveToken(tokens)
 		if err != nil {
-			communication.LogFatalErr("Error saving token", err)
+			communication.LoginFailure(fmt.Errorf("Error saving token: %s", err.Error()))
+
 		}
-		communication.LogInfo("Logged in successfully")
+		communication.LoginSuccess(tokens.IDToken)
 	},
 }
 
