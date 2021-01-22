@@ -1,5 +1,6 @@
 import React from "react";
-import classNames from 'classnames';
+import classNames from "classnames";
+import { isLoopholeHostnameValid } from "../../features/validator/validators";
 
 interface BasicAuthSettingsProps {
   usingValue: boolean;
@@ -15,7 +16,7 @@ const HostnameSettings = (props: BasicAuthSettingsProps): JSX.Element => {
   const setCustomHostname = props.hostnameChangeCallback;
 
   const isHostnameValid = (): boolean => {
-    return customHostname.match(/^[a-z][a-z0-9]{0,30}$/) !== null;
+    return isLoopholeHostnameValid(customHostname);
   };
 
   return (
@@ -40,8 +41,8 @@ const HostnameSettings = (props: BasicAuthSettingsProps): JSX.Element => {
             <input
               className={classNames({
                 input: true,
-                'is-success': isHostnameValid(),
-                'is-danger': !isHostnameValid()
+                "is-success": isHostnameValid(),
+                "is-danger": !isHostnameValid(),
               })}
               type="text"
               placeholder="Hostname to expose tunnel on"

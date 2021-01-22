@@ -13,6 +13,13 @@ import { useHistory } from "react-router-dom";
 import Message from "../interfaces/Message";
 import ExposeHttpPortMessage from "../interfaces/ExposeHttpPortMessage";
 import { MessageTypeRequestTunnelStartHTTP } from "../constants/websocket";
+import {
+  isBasicAuthPasswordValid,
+  isBasicAuthUsernameValid,
+  isLocalHostValid,
+  isLocalPortValid,
+  isLoopholeHostnameValid,
+} from "../features/validator/validators";
 
 const HTTP = () => {
   const dispatch = useDispatch();
@@ -27,24 +34,22 @@ const HTTP = () => {
   const [basicAuthPassword, setBasicAuthPassword] = useState("");
   const [disableProxyErrorPage, setDisableProxyErrorPage] = useState(false);
 
-
   const areInputsValid = (): boolean => {
-    if (hostname.length === 0) return false;
+    if (!isLocalHostValid(hostname)) return false;
+    if (!isLocalPortValid(parseInt(port, 10))) return false;
     if (parseInt(port, 10) <= 0) return false;
-    if (
-      usingCustomHostname &&
-      customHostname.match(/^[a-z][a-z0-9]{0,30}$/) === null
-    )
+    if (usingCustomHostname && !isLoopholeHostnameValid(customHostname))
       return false;
     if (
       usingBasicAuth &&
-      (basicAuthUsername.length < 3 || basicAuthPassword.length < 3)
+      (!isBasicAuthUsernameValid(basicAuthUsername) ||
+        !isBasicAuthPasswordValid(basicAuthPassword))
     )
       return false;
     return true;
   };
 
-  const startTunnel = (e : FormEvent) => {
+  const startTunnel = (e: FormEvent) => {
     e.preventDefault();
     const options: ExposeHttpPort = {
       local: {
@@ -54,7 +59,7 @@ const HTTP = () => {
       },
       remote: {
         disableProxyErrorPage: false,
-        tunnelId: uuidv4()
+        tunnelId: uuidv4(),
       },
     };
     if (usingCustomHostname) {

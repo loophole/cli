@@ -1,5 +1,6 @@
 import React from "react";
 import classNames from "classnames";
+import { isBasicAuthPasswordValid, isBasicAuthUsernameValid } from "../../features/validator/validators";
 
 interface BasicAuthSettingsProps {
   usingValue: boolean;
@@ -19,10 +20,10 @@ const BasicAuthSettings = (props: BasicAuthSettingsProps): JSX.Element => {
   const setBasicAuthPassword = props.passwordChangeCallback;
 
   const isUsernameValid = (): boolean => {
-    return basicAuthUsername.length >= 3;
+    return isBasicAuthUsernameValid(basicAuthUsername);
   };
   const isPasswordValid = (): boolean => {
-    return basicAuthPassword.length >= 3;
+    return isBasicAuthPasswordValid(basicAuthPassword);
   };
 
   return (
