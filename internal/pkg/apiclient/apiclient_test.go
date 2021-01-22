@@ -25,11 +25,13 @@ func TestRegisterSiteSuccessOKShouldPropagateWithoutIdProvided(t *testing.T) {
 		"siteId": "%s"
 	}`, expectedSiteID))
 	defer srv.Close()
+
+	apiURL = srv.URL
 	publicKey, err := getPublicSSHKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0", "asd123")
+	result, err := RegisterSite(publicKey, "")
 
 	if err != nil {
 		t.Fatalf("Unexpected error returned: %v", err)
@@ -53,11 +55,13 @@ func TestRegisterSiteSuccessCreatedShouldPropagateWithoutIdProvided(t *testing.T
 		"siteId": "%s"
 	}`, expectedSiteID))
 	defer srv.Close()
+
+	apiURL = srv.URL
 	publicKey, err := getPublicSSHKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0", "asd123")
+	result, err := RegisterSite(publicKey, "")
 
 	if err != nil {
 		t.Fatalf("Unexpected error returned: %v", err)
@@ -82,11 +86,13 @@ func TestRegisterSiteSuccessOKShouldPropagateWithIdProvided(t *testing.T) {
 		"siteId": "%s"
 	}`, expectedSiteID))
 	defer srv.Close()
+
+	apiURL = srv.URL
 	publicKey, err := getPublicSSHKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RegisterSite(srv.URL, publicKey, expectedSiteID, "1.0.0", "asd123")
+	result, err := RegisterSite(publicKey, expectedSiteID)
 
 	if err != nil {
 		t.Fatalf("Unexpected error returned: %v", err)
@@ -110,11 +116,13 @@ func TestRegisterSiteSuccessCreatedShouldPropagateWithIdProvided(t *testing.T) {
 		"siteId": "%s"
 	}`, expectedSiteID))
 	defer srv.Close()
+
+	apiURL = srv.URL
 	publicKey, err := getPublicSSHKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RegisterSite(srv.URL, publicKey, expectedSiteID, "1.0.0", "asd123")
+	result, err := RegisterSite(publicKey, expectedSiteID)
 
 	if err != nil {
 		t.Fatalf("Unexpected error returned: %v", err)
@@ -141,11 +149,13 @@ func TestRegisterSiteError400ShouldPropagateError(t *testing.T) {
 		"message": "%s"
 	}`, expectedErrorMessage))
 	defer srv.Close()
+
+	apiURL = srv.URL
 	publicKey, err := getPublicSSHKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0", "asd123")
+	result, err := RegisterSite(publicKey, "")
 
 	if err == nil {
 		t.Fatalf("Expected an error to be returned")
@@ -182,11 +192,13 @@ func TestRegisterSiteError401ShouldPropagateError(t *testing.T) {
 		"message": "%s"
 	}`, expectedErrorMessage))
 	defer srv.Close()
+
+	apiURL = srv.URL
 	publicKey, err := getPublicSSHKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0", "asd123")
+	result, err := RegisterSite(publicKey, "")
 
 	if err == nil {
 		t.Fatalf("Expected an error to be returned")
@@ -223,11 +235,13 @@ func TestRegisterSiteError403ShouldPropagateError(t *testing.T) {
 		"message": "%s"
 	}`, expectedErrorMessage))
 	defer srv.Close()
+
+	apiURL = srv.URL
 	publicKey, err := getPublicSSHKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0", "asd123")
+	result, err := RegisterSite(publicKey, "")
 
 	if err == nil {
 		t.Fatalf("Expected an error to be returned")
@@ -260,11 +274,13 @@ func TestRegisterTokenNotSavedReturns401(t *testing.T) {
 		"siteId": "whateverrrr"
 	}`)
 	defer srv.Close()
+
+	apiURL = srv.URL
 	publicKey, err := getPublicSSHKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0", "asd123")
+	result, err := RegisterSite(publicKey, "")
 
 	if err == nil {
 		t.Fatalf("Expected an error to be returned")
@@ -294,11 +310,14 @@ func TestRegisterTokenReadingProblemReturns401(t *testing.T) {
 		"siteId": "whateverrrr"
 	}`)
 	defer srv.Close()
+
+	apiURL = srv.URL
+
 	publicKey, err := getPublicSSHKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := RegisterSite(srv.URL, publicKey, "", "1.0.0", "asd123")
+	result, err := RegisterSite(publicKey, "")
 
 	if err == nil {
 		t.Fatalf("Expected an error to be returned")
@@ -318,7 +337,7 @@ func TestRegisterTokenReadingProblemReturns401(t *testing.T) {
 func serverMock(httpStatus int, expectedResponse string) *httptest.Server {
 	handler := http.NewServeMux()
 	registerSiteMock := getRegisterSiteHandler(httpStatus, expectedResponse)
-	handler.HandleFunc("/api/register-site", registerSiteMock)
+	handler.HandleFunc("/api/site", registerSiteMock)
 
 	srv := httptest.NewServer(handler)
 

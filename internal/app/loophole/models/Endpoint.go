@@ -4,9 +4,9 @@ import "fmt"
 
 // Endpoint is representing host address
 type Endpoint struct {
-	Protocol string
-	Host     string
-	Port     int32
+	Protocol string `json:"protocol"`
+	Host     string `json:"host"`
+	Port     int32  `json:"port"`
 }
 
 // URI returns the full uri string protocol://host:port

@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"fmt"
 	"os"
 	"path"
 
@@ -12,13 +13,13 @@ import (
 func GetLocalStorageDir(directoryName string) string {
 	home, err := homedir.Dir()
 	if err != nil {
-		communication.LogFatalErr("Error reading user home directory ", err)
+		communication.Fatal(fmt.Sprintf("Error reading user home directory: %s", err.Error()))
 	}
 
 	dirName := path.Join(home, ".loophole", directoryName)
 	err = os.MkdirAll(dirName, os.ModePerm)
 	if err != nil {
-		communication.LogFatalErr("Error creating local cache directory", err)
+		communication.Fatal(fmt.Sprintf("Error creating local cache directory: %s", err.Error()))
 	}
 	return dirName
 }
@@ -27,12 +28,12 @@ func GetLocalStorageDir(directoryName string) string {
 func GetLocalStorageFile(fileName string, directoryName string) string {
 	home, err := homedir.Dir()
 	if err != nil {
-		communication.LogFatalErr("Error reading user home directory ", err)
+		communication.Fatal(fmt.Sprintf("Error reading user home directory: %s", err.Error()))
 	}
 	dirName := path.Join(home, ".loophole", directoryName)
 	err = os.MkdirAll(dirName, os.ModePerm)
 	if err != nil {
-		communication.LogFatalErr("Error creating local cache directory", err)
+		communication.Fatal(fmt.Sprintf("Error creating local cache directory: %s", err.Error()))
 	}
 
 	return path.Join(dirName, fileName)

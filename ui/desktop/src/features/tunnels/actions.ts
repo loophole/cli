@@ -1,0 +1,1 @@
+export const MessageTypeDeleteFailedTunnel = "Internal_MT_DeleteFailedTunnel"

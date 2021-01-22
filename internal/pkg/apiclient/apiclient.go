@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"runtime"
 	"time"
 
+	"github.com/loophole/cli/config"
+	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/loophole/cli/internal/pkg/token"
 	"github.com/loophole/cli/internal/pkg/urlmaker"
-	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -34,6 +34,7 @@ type ErrorResponse struct {
 	Error      string `json:"error"`
 }
 
+// RequestError is an error returned when the request finished with failure
 type RequestError struct {
 	Message    string
 	Details    string
@@ -41,20 +42,21 @@ type RequestError struct {
 }
 
 func (err RequestError) Error() string {
-	return err.Message
+	return fmt.Sprintf("Request Error (%d): %s - %s", err.StatusCode, err.Message, err.Details)
 }
 
 var isTokenSaved = token.IsTokenSaved
 var getAccessToken = token.GetAccessToken
 var tokenWasRefreshed = false
+var apiURL = config.Config.APIEndpoint.URI()
 
 // RegisterSite is a funtion used to obtain site id and register keys in the gateway
-func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID, version, commitHash string) (string, error) {
+func RegisterSite(publicKey ssh.PublicKey, requestedSiteID string) (string, error) {
 	publicKeyString := publicKey.Type() + " " + base64.StdEncoding.EncodeToString(publicKey.Marshal())
 
 	if !isTokenSaved() {
 		return "", RequestError{
-			Message:    fmt.Sprintf("You're not logged in, please use '%s account login'", os.Args[0]),
+			Message:    "You're not logged in",
 			Details:    "Cannot read locally stored token",
 			StatusCode: http.StatusUnauthorized,
 		}
@@ -72,8 +74,8 @@ func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID, version, commi
 	data := map[string]string{
 		"key": publicKeyString,
 	}
-	if siteID != "" {
-		data["id"] = siteID
+	if requestedSiteID != "" {
+		data["id"] = requestedSiteID
 	}
 
 	jsonData, err := json.Marshal(data)
@@ -81,20 +83,20 @@ func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID, version, commi
 		return "", err
 	}
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/register-site", apiURL), bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/site", apiURL), bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", fmt.Sprintf("loophole/%s-%s (%s/%s) %s", version, commitHash, runtime.GOOS, runtime.GOARCH, urlmaker.HostURL))
+	req.Header.Set("User-Agent", userAgent())
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
 
 	var netTransport = &http.Transport{
 		Dial: (&net.Dialer{
-			Timeout: 5 * time.Second,
+			Timeout: 10 * time.Second,
 		}).Dial,
-		TLSHandshakeTimeout: 5 * time.Second,
+		TLSHandshakeTimeout: 10 * time.Second,
 	}
 	var netClient = &http.Client{
 		Timeout:   time.Second * 30,
@@ -134,7 +136,7 @@ func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID, version, commi
 					}
 				}
 				tokenWasRefreshed = true
-				return RegisterSite(apiURL, publicKey, siteID, version, commitHash)
+				return RegisterSite(publicKey, requestedSiteID)
 			}
 			return "", RequestError{
 				Message:    "Authentication failed, try logging out and logging in again",
@@ -178,23 +180,19 @@ func RegisterSite(apiURL string, publicKey ssh.PublicKey, siteID, version, commi
 		return "", err
 	}
 
-	if el := log.Debug(); el.Enabled() {
-		fmt.Println()
-		el.Interface("result", result).Msg("Site registration response")
-	}
+	communication.Debug(fmt.Sprintf("Site registration response: %v", result))
 
 	return result.SiteID, nil
 }
 
-func GetLatestAvailableVersion(apiURL string, version string) (string, error) {
-
+func GetLatestAvailableVersion() (string, error) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/info", apiURL), bytes.NewBuffer([]byte{}))
 	if err != nil {
 		return "", err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", fmt.Sprintf("loophole/%s (%s/%s) %s", version, runtime.GOOS, runtime.GOARCH, urlmaker.HostURL))
+	req.Header.Set("User-Agent", userAgent())
 
 	var netTransport = &http.Transport{
 		Dial: (&net.Dialer{
@@ -223,10 +221,17 @@ func GetLatestAvailableVersion(apiURL string, version string) (string, error) {
 		return "", err
 	}
 
-	if el := log.Debug(); el.Enabled() {
-		fmt.Println()
-		el.Interface("result", result).Msg("Info response")
-	}
+	communication.Debug(fmt.Sprintf("Info response: %v", result))
 
 	return result.Version, nil
+}
+
+func userAgent() string {
+	return fmt.Sprintf("loophole-%s/%s-%s (%s/%s) %s",
+		config.Config.ClientMode,
+		config.Config.Version,
+		config.Config.CommitHash,
+		runtime.GOOS,
+		runtime.GOARCH,
+		urlmaker.HostURL)
 }
