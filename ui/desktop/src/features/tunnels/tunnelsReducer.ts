@@ -153,7 +153,6 @@ export const tunnelsReducer = createReducer(initialState, {
       payload: { tunnel: Tunnel };
     }
   ) => {
-    console.log(action, action.payload, action.payload.tunnel);
     state.tunnels = state.tunnels
       .filter((tunnel) => tunnel.tunnelId !== action.payload.tunnel.tunnelId);
   },

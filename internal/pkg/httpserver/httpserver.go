@@ -249,8 +249,6 @@ func getTLSConfig(siteID string) *tls.Config {
 		Email:      fmt.Sprintf("lh-%s@main.dev", siteID),
 	}
 
-	fmt.Println(certManager.HostPolicy)
-
 	return certManager.TLSConfig()
 }
 
