@@ -1,5 +1,6 @@
 import React from "react";
 import classNames from "classnames";
+import { isLocalPathValid } from "../../features/validator/validators";
 interface LocalDirectorySettingsProps {
   pathValue: string;
   pathChangeCallback: Function;
@@ -11,7 +12,7 @@ const LocalDirectorySettings = (
   const setPath = props.pathChangeCallback;
 
   const isPathValid = (): boolean => {
-    return path.length >= 1;
+    return isLocalPathValid(path);
   };
 
   return (

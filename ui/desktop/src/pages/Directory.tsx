@@ -13,6 +13,12 @@ import { useHistory } from "react-router-dom";
 import Message from "../interfaces/Message";
 import ExposeDirectoryMessage from "../interfaces/ExposeDirectoryMessage";
 import { MessageTypeRequestTunnelStartDirectory } from "../constants/websocket";
+import {
+  isBasicAuthPasswordValid,
+  isBasicAuthUsernameValid,
+  isLocalPathValid,
+  isLoopholeHostnameValid,
+} from "../features/validator/validators";
 
 const DirectoryPage = () => {
   const dispatch = useDispatch();
@@ -26,15 +32,13 @@ const DirectoryPage = () => {
   const [basicAuthPassword, setBasicAuthPassword] = useState("");
 
   const areInputsValid = (): boolean => {
-    if (path.length === 0) return false;
-    if (
-      usingCustomHostname &&
-      customHostname.match(/^[a-z][a-z0-9]{0,30}$/) === null
-    )
+    if (!isLocalPathValid(path)) return false;
+    if (usingCustomHostname && !isLoopholeHostnameValid(customHostname))
       return false;
     if (
       usingBasicAuth &&
-      (basicAuthUsername.length < 3 || basicAuthPassword.length < 3)
+      (!isBasicAuthUsernameValid(basicAuthUsername) ||
+        !isBasicAuthPasswordValid(basicAuthPassword))
     )
       return false;
     return true;
@@ -47,7 +51,7 @@ const DirectoryPage = () => {
       },
       remote: {
         disableProxyErrorPage: false,
-        tunnelId: uuidv4()
+        tunnelId: uuidv4(),
       },
     };
     if (usingCustomHostname) {

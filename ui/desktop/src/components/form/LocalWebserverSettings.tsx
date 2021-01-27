@@ -1,5 +1,6 @@
 import React from "react";
 import classNames from "classnames";
+import { isLocalHostValid, isLocalPortValid } from "../../features/validator/validators";
 
 interface LocalWebserverSettingsProps {
   hostnameValue: string;
@@ -10,11 +11,6 @@ interface LocalWebserverSettingsProps {
   httpsValue: boolean;
 }
 
-const validIpAddressRegex =
-  "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]).){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$";
-const validHostnameRegex =
-  "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]).)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9])$";
-
 const LocalWebserverSettings = (
   props: LocalWebserverSettingsProps
 ): JSX.Element => {
@@ -24,14 +20,11 @@ const LocalWebserverSettings = (
   const setHTTPS = props.httpsChangeCallback;
 
   const isHostValid = (): boolean => {
-    return (
-      props.hostnameValue.match(validIpAddressRegex) !== null ||
-      props.hostnameValue.match(validHostnameRegex) !== null
-    );
+    return isLocalHostValid(props.hostnameValue);
   };
 
   const isPortValid = (): boolean => {
-    return port > 0 && port <= 65535
+    return isLocalPortValid(port);
   };
 
   return (
