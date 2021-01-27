@@ -46,7 +46,6 @@ func initLogger() {
 
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	if config.Config.Display.Verbose {
-		fmt.Println("Changing logging level to debug")
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 

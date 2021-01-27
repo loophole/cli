@@ -51,7 +51,6 @@ export const configReducer = createReducer(
           ? jwtDecode(action.payload.message.idToken)
           : null;
       } else if (action.payload.message.type === MessageTypeLogoutSuccess) {
-        console.log(action);
         state.loggedIn = false;
         state.user = null;
         state.syncedWithBackend = true;

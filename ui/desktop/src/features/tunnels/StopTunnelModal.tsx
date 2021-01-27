@@ -39,7 +39,6 @@ const StopTunnelModal = (props: StopTunnelProps) => {
         tunnel: props.tunnel,
       },
     };
-    console.log(action);
     dispatch(action);
     props.hideAction();
   };
