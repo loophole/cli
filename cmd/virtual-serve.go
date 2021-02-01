@@ -3,8 +3,10 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/beevik/guid"
 	"github.com/blang/semver/v4"
@@ -56,14 +58,24 @@ func parseBasicAuthFlags(flagset *pflag.FlagSet) error {
 	})
 
 	if usernameProvided && !passwordProvided {
-		fmt.Print("Enter basic auth password: ")
+		fi, _ := os.Stdin.Stat()
+		var password string
+		if (fi.Mode() & os.ModeCharDevice) != 0 {
+			fmt.Print("Enter basic auth password: ")
+			var err error
+			passwordBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+			password = string(passwordBytes)
+			if err != nil {
+				return err
+			}
+			fmt.Println()
+		} else {
+			reader := bufio.NewReader(os.Stdin)
+			passwordBytes, _ := reader.ReadBytes('\n')
+			password = strings.TrimSuffix(string(passwordBytes), "\n")
 
-		password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-		if err != nil {
-			return err
 		}
-		fmt.Println()
-		passwordFlag.Value.Set(string(password))
+		passwordFlag.Value.Set(password)
 	}
 	if passwordProvided && !usernameProvided {
 		return fmt.Errorf("When using basic auth, both %s and %s have to be provided", basicAuthUsernameFlagName, basicAuthPasswordFlagName)
