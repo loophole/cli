@@ -5,6 +5,7 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -71,7 +72,13 @@ func parseBasicAuthFlags(flagset *pflag.FlagSet) error {
 			fmt.Println()
 		} else {
 			reader := bufio.NewReader(os.Stdin)
-			passwordBytes, _ := reader.ReadBytes('\n')
+			passwordBytes, err := reader.ReadBytes('\n')
+			//if the reader encounters EOF before \n,
+			//we assume that everything up until EOF is the intended password and continue
+			if err != nil && err != io.EOF {
+				communication.Warn("An error occured while reading the basic auth password from pipe.")
+				communication.Warn(err.Error())
+			}
 			password = strings.TrimSuffix(string(passwordBytes), "\n")
 
 		}
