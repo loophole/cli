@@ -14,6 +14,7 @@ import (
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/apiclient"
 	"github.com/loophole/cli/internal/pkg/cache"
+	"github.com/loophole/cli/internal/pkg/closehandler"
 	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -58,9 +59,8 @@ func parseBasicAuthFlags(flagset *pflag.FlagSet) error {
 	})
 
 	if usernameProvided && !passwordProvided {
-		fi, _ := os.Stdin.Stat()
 		var password string
-		if (fi.Mode() & os.ModeCharDevice) != 0 {
+		if !closehandler.IsPipe() { //only ask for password in terminal if not using pipe
 			fmt.Print("Enter basic auth password: ")
 			var err error
 			passwordBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
