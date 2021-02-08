@@ -13,7 +13,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 //ParsePublicKey retrieves an ssh.AuthMethod and the related PublicKey
@@ -57,7 +57,7 @@ func ParsePublicKey(file string) (ssh.AuthMethod, ssh.PublicKey, error) {
 			if err != nil {
 				fmt.Print("Enter SSH password: ")
 
-				password, _ := terminal.ReadPassword(int(os.Stdin.Fd()))
+				password, _ := term.ReadPassword(int(os.Stdin.Fd()))
 				fmt.Println()
 				signer, err = ssh.ParsePrivateKeyWithPassphrase(privateKey, []byte(password))
 				if err != nil {
