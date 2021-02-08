@@ -6,6 +6,7 @@ import (
 	"syscall"
 
 	"github.com/loophole/cli/internal/pkg/communication"
+	"github.com/loophole/cli/internal/pkg/inpututil"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -18,12 +19,12 @@ func SetupCloseHandler(feedbackFormURL string) {
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
-	if !IsPipe() { //don't try to get terminal state if using a pipe
+	if !inpututil.IsUsingPipe() { //don't try to get terminal state if using a pipe
 		var err error
 		terminalState, err = terminal.GetState(int(os.Stdin.Fd()))
 		if err != nil {
 			communication.Warn("Error saving terminal state")
-			communication.Warn(err.Error())
+			communication.Fatal(err.Error())
 		}
 	}
 	go func() {
@@ -34,14 +35,4 @@ func SetupCloseHandler(feedbackFormURL string) {
 		communication.ApplicationStop()
 		os.Exit(0)
 	}()
-}
-
-//IsPipe returns whether a pipe is being used for inputs or not
-func IsPipe() bool {
-	stdinInfo, err := os.Stdin.Stat()
-	if err != nil {
-		communication.Warn("Error getting terminal info")
-		communication.Warn(err.Error())
-	}
-	return (stdinInfo.Mode() & os.ModeCharDevice) == 0
 }

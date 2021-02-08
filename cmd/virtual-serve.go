@@ -15,8 +15,8 @@ import (
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/apiclient"
 	"github.com/loophole/cli/internal/pkg/cache"
-	"github.com/loophole/cli/internal/pkg/closehandler"
 	"github.com/loophole/cli/internal/pkg/communication"
+	"github.com/loophole/cli/internal/pkg/inpututil"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/crypto/ssh/terminal"
@@ -61,7 +61,7 @@ func parseBasicAuthFlags(flagset *pflag.FlagSet) error {
 
 	if usernameProvided && !passwordProvided {
 		var password string
-		if !closehandler.IsPipe() { //only ask for password in terminal if not using pipe
+		if !inpututil.IsUsingPipe() { //only ask for password in terminal if not using pipe
 			fmt.Print("Enter basic auth password: ")
 			var err error
 			passwordBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
@@ -77,7 +77,7 @@ func parseBasicAuthFlags(flagset *pflag.FlagSet) error {
 			//we assume that everything up until EOF is the intended password and continue
 			if err != nil && err != io.EOF {
 				communication.Warn("An error occured while reading the basic auth password from pipe.")
-				communication.Warn(err.Error())
+				communication.Fatal(err.Error())
 			}
 			password = strings.TrimSuffix(string(passwordBytes), "\n")
 
