@@ -19,7 +19,7 @@ import (
 	"github.com/loophole/cli/internal/pkg/inpututil"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 var remoteEndpointSpecs lm.RemoteEndpointSpecs
@@ -64,7 +64,7 @@ func parseBasicAuthFlags(flagset *pflag.FlagSet) error {
 		if !inpututil.IsUsingPipe() { //only ask for password in terminal if not using pipe
 			fmt.Print("Enter basic auth password: ")
 			var err error
-			passwordBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+			passwordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 			password = string(passwordBytes)
 			if err != nil {
 				return err
