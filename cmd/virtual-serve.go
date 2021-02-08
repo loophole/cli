@@ -3,8 +3,11 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
+	"strings"
 
 	"github.com/beevik/guid"
 	"github.com/blang/semver/v4"
@@ -13,6 +16,7 @@ import (
 	"github.com/loophole/cli/internal/pkg/apiclient"
 	"github.com/loophole/cli/internal/pkg/cache"
 	"github.com/loophole/cli/internal/pkg/communication"
+	"github.com/loophole/cli/internal/pkg/inpututil"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/crypto/ssh/terminal"
@@ -56,14 +60,29 @@ func parseBasicAuthFlags(flagset *pflag.FlagSet) error {
 	})
 
 	if usernameProvided && !passwordProvided {
-		fmt.Print("Enter basic auth password: ")
+		var password string
+		if !inpututil.IsUsingPipe() { //only ask for password in terminal if not using pipe
+			fmt.Print("Enter basic auth password: ")
+			var err error
+			passwordBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+			password = string(passwordBytes)
+			if err != nil {
+				return err
+			}
+			fmt.Println()
+		} else {
+			reader := bufio.NewReader(os.Stdin)
+			passwordBytes, err := reader.ReadBytes('\n')
+			//if the reader encounters EOF before \n,
+			//we assume that everything up until EOF is the intended password and continue
+			if err != nil && err != io.EOF {
+				communication.Warn("An error occured while reading the basic auth password from pipe.")
+				communication.Fatal(err.Error())
+			}
+			password = strings.TrimSuffix(string(passwordBytes), "\n")
 
-		password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-		if err != nil {
-			return err
 		}
-		fmt.Println()
-		passwordFlag.Value.Set(string(password))
+		passwordFlag.Value.Set(password)
 	}
 	if passwordProvided && !usernameProvided {
 		return fmt.Errorf("When using basic auth, both %s and %s have to be provided", basicAuthUsernameFlagName, basicAuthPasswordFlagName)
