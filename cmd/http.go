@@ -9,6 +9,7 @@ import (
 
 	"github.com/loophole/cli/internal/app/loophole"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
+	"github.com/loophole/cli/internal/app/loopholed"
 	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/loophole/cli/internal/pkg/token"
 
@@ -43,13 +44,18 @@ To expose port running on some local host e.g. 192.168.1.20 use 'loophole http <
 			Local:  localEndpointSpecs,
 			Remote: remoteEndpointSpecs,
 		}
+		if useDaemon {
+			loopholedClient := &loopholed.LoopholedClient{}
 
-		authMethod, err := loophole.RegisterTunnel(&exposeConfig.Remote)
-		if err != nil {
-			communication.Fatal(err.Error())
+			loopholedClient.HTTP(exposeConfig)
+		} else {
+			authMethod, err := loophole.RegisterTunnel(&exposeConfig.Remote)
+			if err != nil {
+				communication.Fatal(err.Error())
+			}
+
+			loophole.ForwardPort(exposeConfig, authMethod, quitChannel)
 		}
-
-		loophole.ForwardPort(exposeConfig, authMethod, quitChannel)
 	},
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {

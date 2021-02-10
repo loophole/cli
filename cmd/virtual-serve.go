@@ -27,6 +27,8 @@ var remoteEndpointSpecs lm.RemoteEndpointSpecs
 var basicAuthUsernameFlagName = "basic-auth-username"
 var basicAuthPasswordFlagName = "basic-auth-password"
 
+var useDaemon = false
+
 func initServeCommand(serveCmd *cobra.Command) {
 	sshDir := cache.GetLocalStorageDir(".ssh") // getting our sshDir and creating it, if it doesn't exist
 
@@ -38,6 +40,8 @@ func initServeCommand(serveCmd *cobra.Command) {
 
 	serveCmd.PersistentFlags().StringVarP(&remoteEndpointSpecs.BasicAuthUsername, basicAuthUsernameFlagName, "u", "", "Basic authentication username to protect site with")
 	serveCmd.PersistentFlags().StringVarP(&remoteEndpointSpecs.BasicAuthPassword, basicAuthPasswordFlagName, "p", "", "Basic authentication password to protect site with")
+
+	serveCmd.PersistentFlags().BoolVar(&useDaemon, "use-daemon", false, "Run tunnel using daemon")
 
 	remoteEndpointSpecs.TunnelID = guid.NewString()
 }
