@@ -67,6 +67,7 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 				sshDir := cache.GetLocalStorageDir(".ssh") //getting our sshDir and creating it, if it doesn't exist
 				exposeHTTPConfig.Remote.IdentityFile = fmt.Sprintf("%s/id_rsa", sshDir)
 
+				communication.TunnelDebug(exposeHTTPConfig.Remote.TunnelID, fmt.Sprintf("Got request for SiteID: '%s'", exposeHTTPConfig.Remote.SiteID))
 				if _, ok := siteToRequestMapping[exposeHTTPConfig.Remote.SiteID]; exposeHTTPConfig.Remote.SiteID != "" && ok {
 					communication.TunnelStartFailure(exposeHTTPConfig.Remote.TunnelID,
 						fmt.Errorf("Tunnel '%s' is already running", exposeHTTPConfig.Remote.SiteID))
@@ -77,6 +78,7 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 					communication.TunnelStartFailure(exposeHTTPConfig.Remote.TunnelID, err)
 					return
 				}
+				communication.TunnelDebug(exposeHTTPConfig.Remote.TunnelID, fmt.Sprintf("Obtained SiteID: '%s'", exposeHTTPConfig.Remote.SiteID))
 				if _, ok := siteToRequestMapping[exposeHTTPConfig.Remote.SiteID]; ok {
 					communication.TunnelStartFailure(exposeHTTPConfig.Remote.TunnelID,
 						fmt.Errorf("Tunnel '%s' is already running", exposeHTTPConfig.Remote.SiteID))
@@ -99,6 +101,7 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 				sshDir := cache.GetLocalStorageDir(".ssh") //getting our sshDir and creating it, if it doesn't exist
 				exposeDirectoryConfig.Remote.IdentityFile = fmt.Sprintf("%s/id_rsa", sshDir)
 
+				communication.TunnelDebug(exposeDirectoryConfig.Remote.TunnelID, fmt.Sprintf("Got request for SiteID: '%s'", exposeDirectoryConfig.Remote.SiteID))
 				if _, ok := siteToRequestMapping[exposeDirectoryConfig.Remote.SiteID]; exposeDirectoryConfig.Remote.SiteID != "" && ok {
 					communication.TunnelStartFailure(exposeDirectoryConfig.Remote.TunnelID,
 						fmt.Errorf("Tunnel '%s' is already running", exposeDirectoryConfig.Remote.SiteID))
@@ -112,6 +115,7 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 					return
 
 				}
+				communication.TunnelDebug(exposeDirectoryConfig.Remote.TunnelID, fmt.Sprintf("Obtained SiteID: '%s'", exposeDirectoryConfig.Remote.SiteID))
 				if _, ok := siteToRequestMapping[exposeDirectoryConfig.Remote.SiteID]; ok {
 					communication.TunnelStartFailure(exposeDirectoryConfig.Remote.TunnelID,
 						fmt.Errorf("Tunnel '%s' is already running", exposeDirectoryConfig.Remote.SiteID))
@@ -134,6 +138,7 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 				sshDir := cache.GetLocalStorageDir(".ssh") //getting our sshDir and creating it, if it doesn't exist
 				exposeWebdavConfig.Remote.IdentityFile = fmt.Sprintf("%s/id_rsa", sshDir)
 
+				communication.TunnelDebug(exposeWebdavConfig.Remote.TunnelID, fmt.Sprintf("Got request for SiteID: '%s'", exposeWebdavConfig.Remote.SiteID))
 				if _, ok := siteToRequestMapping[exposeWebdavConfig.Remote.SiteID]; exposeWebdavConfig.Remote.SiteID != "" && ok {
 					communication.TunnelStartFailure(exposeWebdavConfig.Remote.TunnelID,
 						fmt.Errorf("Tunnel '%s' is already running", exposeWebdavConfig.Remote.SiteID))
@@ -146,6 +151,7 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 
+				communication.TunnelDebug(exposeWebdavConfig.Remote.TunnelID, fmt.Sprintf("Obtained SiteID: '%s'", exposeWebdavConfig.Remote.SiteID))
 				if _, ok := siteToRequestMapping[exposeWebdavConfig.Remote.SiteID]; ok {
 					communication.TunnelStartFailure(exposeWebdavConfig.Remote.TunnelID,
 						fmt.Errorf("Tunnel '%s' is already running", exposeWebdavConfig.Remote.SiteID))
@@ -164,9 +170,11 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 				communication.Warn(err.Error())
 			}
 			tunnelQuitChannels[stopTunnelMessage.TunnelID] <- true
-			siteID, ok := findValue(siteToRequestMapping, stopTunnelMessage.TunnelID)
+			siteID, ok := findKeyByValue(siteToRequestMapping, stopTunnelMessage.TunnelID)
 			if ok {
+				communication.Debug(fmt.Sprintf("Removing %s from the dict", siteID))
 				delete(siteToRequestMapping, siteID)
+
 			}
 		case MessageTypeAuthorization:
 			if authAlreadyRan {
@@ -254,10 +262,10 @@ func Display() {
 	<-ui.Done()
 }
 
-func findValue(m map[string]string, v string) (string, bool) {
-	for _, x := range m {
+func findKeyByValue(m map[string]string, v string) (string, bool) {
+	for k, x := range m {
 		if x == v {
-			return x, true
+			return k, true
 		}
 	}
 	return "", false
