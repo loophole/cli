@@ -128,6 +128,7 @@ type tunnelStartSuccessMessage struct {
 	Type      MessageType `json:"type"`
 	TunnelID  string      `json:"tunnelId"`
 	SiteID    string      `json:"siteId"`
+	Domain    string      `json:"domain"`
 	SiteAddrs []string    `json:"siteAddrs"`
 	LocalAddr string      `json:"localAddr"`
 }
@@ -278,12 +279,13 @@ func (l *websocketLogger) TunnelStart(tunnelID string) {
 
 func (l *websocketLogger) TunnelStartSuccess(remoteConfig coreModels.RemoteEndpointSpecs, localEndpoint string) {
 	siteAddrs := []string{}
-	siteAddrs = append(siteAddrs, urlmaker.GetSiteURL("https", remoteConfig.SiteID))
+	siteAddrs = append(siteAddrs, urlmaker.GetSiteURL("https", remoteConfig.SiteID, remoteConfig.Domain))
 
 	l.write(tunnelStartSuccessMessage{
 		Type:      MessageTypeTunnelStartSuccess,
 		TunnelID:  remoteConfig.TunnelID,
 		SiteID:    remoteConfig.SiteID,
+		Domain:    remoteConfig.Domain,
 		SiteAddrs: siteAddrs,
 		LocalAddr: localEndpoint,
 	})

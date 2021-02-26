@@ -9,9 +9,7 @@ import (
 
 	auth "github.com/abbot/go-http-auth"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
-	"github.com/loophole/cli/internal/pkg/cache"
 	"github.com/loophole/cli/internal/pkg/urlmaker"
-	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/net/webdav"
 )
@@ -21,7 +19,8 @@ const (
 )
 
 type ServerBuilder interface {
-	WithHostname(string) ServerBuilder
+	WithSiteID(string) ServerBuilder
+	WithDomain(string) ServerBuilder
 	Proxy() ProxyServerBuilder
 	ServeStatic() StaticServerBuilder
 	ServeWebdav() WebdavServerBuilder
@@ -29,10 +28,16 @@ type ServerBuilder interface {
 
 type serverBuilder struct {
 	siteID string
+	domain string
 }
 
-func (sb *serverBuilder) WithHostname(siteID string) ServerBuilder {
+func (sb *serverBuilder) WithSiteID(siteID string) ServerBuilder {
 	sb.siteID = siteID
+	return sb
+}
+
+func (sb *serverBuilder) WithDomain(domain string) ServerBuilder {
+	sb.domain = domain
 	return sb
 }
 
@@ -98,6 +103,7 @@ func (psb *proxyServerBuilder) Build() (*http.Server, error) {
 		Scheme: psb.endpoint.Protocol,
 		Host:   psb.endpoint.Hostname(),
 	})
+
 	if !psb.disableProxyErrorPage {
 		proxy.ErrorHandler = proxyErrorHandler
 	}
@@ -111,19 +117,19 @@ func (psb *proxyServerBuilder) Build() (*http.Server, error) {
 	var server *http.Server
 
 	if psb.basicAuthEnabled {
-		proxyWithAuth, err := getBasicAuthHandler(psb.serverBuilder.siteID, psb.basicAuthUsername, psb.basicAuthPassword, proxy.ServeHTTP)
+		proxyWithAuth, err := getBasicAuthHandler(psb.serverBuilder.siteID, psb.serverBuilder.domain, psb.basicAuthUsername, psb.basicAuthPassword, proxy.ServeHTTP)
 		if err != nil {
 			return nil, err
 		}
 
 		server = &http.Server{
 			Handler:   proxyWithAuth,
-			TLSConfig: getTLSConfig(psb.serverBuilder.siteID),
+			TLSConfig: getTLSConfig(psb.serverBuilder.siteID, psb.serverBuilder.domain),
 		}
 	} else {
 		server = &http.Server{
 			Handler:   proxy,
-			TLSConfig: getTLSConfig(psb.serverBuilder.siteID),
+			TLSConfig: getTLSConfig(psb.serverBuilder.siteID, psb.serverBuilder.domain),
 		}
 	}
 
@@ -162,19 +168,19 @@ func (ssb *staticServerBuilder) Build() (*http.Server, error) {
 	var server *http.Server
 
 	if ssb.basicAuthEnabled {
-		handler, err := getBasicAuthHandler(ssb.serverBuilder.siteID, ssb.basicAuthUsername, ssb.basicAuthPassword, fs.ServeHTTP)
+		handler, err := getBasicAuthHandler(ssb.serverBuilder.siteID, ssb.serverBuilder.domain, ssb.basicAuthUsername, ssb.basicAuthPassword, fs.ServeHTTP)
 		if err != nil {
 			return nil, err
 		}
 
 		server = &http.Server{
 			Handler:   handler,
-			TLSConfig: getTLSConfig(ssb.serverBuilder.siteID),
+			TLSConfig: getTLSConfig(ssb.serverBuilder.siteID, ssb.serverBuilder.domain),
 		}
 	} else {
 		server = &http.Server{
 			Handler:   fs,
-			TLSConfig: getTLSConfig(ssb.serverBuilder.siteID),
+			TLSConfig: getTLSConfig(ssb.serverBuilder.siteID, ssb.serverBuilder.domain),
 		}
 	}
 
@@ -217,19 +223,19 @@ func (wsb *webdavServerBuilder) Build() (*http.Server, error) {
 	var server *http.Server
 
 	if wsb.basicAuthEnabled {
-		handler, err := getBasicAuthHandler(wsb.serverBuilder.siteID, wsb.basicAuthUsername, wsb.basicAuthPassword, wdHandler.ServeHTTP)
+		handler, err := getBasicAuthHandler(wsb.serverBuilder.siteID, wsb.serverBuilder.domain, wsb.basicAuthUsername, wsb.basicAuthPassword, wdHandler.ServeHTTP)
 		if err != nil {
 			return nil, err
 		}
 
 		server = &http.Server{
 			Handler:   handler,
-			TLSConfig: getTLSConfig(wsb.serverBuilder.siteID),
+			TLSConfig: getTLSConfig(wsb.serverBuilder.siteID, wsb.serverBuilder.domain),
 		}
 	} else {
 		server = &http.Server{
 			Handler:   wdHandler,
-			TLSConfig: getTLSConfig(wsb.serverBuilder.siteID),
+			TLSConfig: getTLSConfig(wsb.serverBuilder.siteID, wsb.serverBuilder.domain),
 		}
 	}
 
@@ -241,18 +247,7 @@ func New() ServerBuilder {
 	return &serverBuilder{}
 }
 
-func getTLSConfig(siteID string) *tls.Config {
-	certManager := autocert.Manager{
-		Prompt:     autocert.AcceptTOS,
-		HostPolicy: autocert.HostWhitelist(urlmaker.GetSiteFQDN(siteID)),
-		Cache:      autocert.DirCache(cache.GetLocalStorageDir("certs")),
-		Email:      fmt.Sprintf("lh-%s@main.dev", siteID),
-	}
-
-	return certManager.TLSConfig()
-}
-
-func getBasicAuthHandler(siteID string, username string, password string, handler http.HandlerFunc) (http.HandlerFunc, error) {
+func getBasicAuthHandler(siteID string, domain string, username string, password string, handler http.HandlerFunc) (http.HandlerFunc, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
@@ -260,7 +255,7 @@ func getBasicAuthHandler(siteID string, username string, password string, handle
 
 	secret := getBasicAuthSecretParser(username, string(hashedPassword))
 
-	authenticator := auth.NewBasicAuthenticator(urlmaker.GetSiteFQDN(siteID), secret)
+	authenticator := auth.NewBasicAuthenticator(urlmaker.GetSiteFQDN(siteID, domain), secret)
 	return auth.JustCheck(authenticator, handler), nil
 }
 

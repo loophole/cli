@@ -71,7 +71,7 @@ const TunnelListItem = (props: TunnelProps) => {
                 <span>
                   {props.tunnel.siteId}
                   <small>
-                    .loophole.site{" "}
+                    .{props.tunnel.domain}{" "}
                     {props.tunnel.localAddr ? (
                       <span>&rarr; {props.tunnel.localAddr}</span>
                     ) : null}
