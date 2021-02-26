@@ -13,13 +13,13 @@ import (
 	"github.com/loophole/cli/config"
 	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/loophole/cli/internal/pkg/token"
-	"github.com/loophole/cli/internal/pkg/urlmaker"
 	"golang.org/x/crypto/ssh"
 )
 
 // RegistrationSuccessResponse defines the json format in which the registration success response is returned
 type RegistrationSuccessResponse struct {
 	SiteID string `json:"siteId"`
+	Domain string `json:"domain"`
 }
 
 // InfoSuccessResponse defines the json format in which the info success response is returned
@@ -51,11 +51,11 @@ var tokenWasRefreshed = false
 var apiURL = config.Config.APIEndpoint.URI()
 
 // RegisterSite is a funtion used to obtain site id and register keys in the gateway
-func RegisterSite(publicKey ssh.PublicKey, requestedSiteID string) (string, error) {
+func RegisterSite(publicKey ssh.PublicKey, requestedSiteID string) (*RegistrationSuccessResponse, error) {
 	publicKeyString := publicKey.Type() + " " + base64.StdEncoding.EncodeToString(publicKey.Marshal())
 
 	if !isTokenSaved() {
-		return "", RequestError{
+		return nil, RequestError{
 			Message:    "You're not logged in",
 			Details:    "Cannot read locally stored token",
 			StatusCode: http.StatusUnauthorized,
@@ -64,7 +64,7 @@ func RegisterSite(publicKey ssh.PublicKey, requestedSiteID string) (string, erro
 
 	accessToken, err := getAccessToken()
 	if err != nil {
-		return "", RequestError{
+		return nil, RequestError{
 			Message:    "There was a problem reading token",
 			Details:    err.Error(),
 			StatusCode: http.StatusUnauthorized,
@@ -80,12 +80,12 @@ func RegisterSite(publicKey ssh.PublicKey, requestedSiteID string) (string, erro
 
 	jsonData, err := json.Marshal(data)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/site", apiURL), bytes.NewBuffer(jsonData))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -105,7 +105,7 @@ func RegisterSite(publicKey ssh.PublicKey, requestedSiteID string) (string, erro
 
 	resp, err := netClient.Do(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
@@ -113,12 +113,12 @@ func RegisterSite(publicKey ssh.PublicKey, requestedSiteID string) (string, erro
 		errorResponse := ErrorResponse{}
 		err := json.NewDecoder(resp.Body).Decode(&errorResponse)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		switch resp.StatusCode {
 		case http.StatusBadRequest:
-			return "", RequestError{
+			return nil, RequestError{
 				Message: errorResponse.Message,
 				Details: `The given hostname didn't match the requirements:
 - Starts with a letter
@@ -129,7 +129,7 @@ func RegisterSite(publicKey ssh.PublicKey, requestedSiteID string) (string, erro
 			if !tokenWasRefreshed {
 				err := token.RefreshToken()
 				if err != nil {
-					return "", RequestError{
+					return nil, RequestError{
 						Message:    "Authentication failed, then refreshing token failed",
 						Details:    errorResponse.Message,
 						StatusCode: resp.StatusCode,
@@ -138,26 +138,26 @@ func RegisterSite(publicKey ssh.PublicKey, requestedSiteID string) (string, erro
 				tokenWasRefreshed = true
 				return RegisterSite(publicKey, requestedSiteID)
 			}
-			return "", RequestError{
+			return nil, RequestError{
 				Message:    "Authentication failed, try logging out and logging in again",
 				Details:    errorResponse.Message,
 				StatusCode: resp.StatusCode,
 			}
 
 		case http.StatusForbidden:
-			return "", RequestError{
+			return nil, RequestError{
 				Message:    "You don't have required permissions to establish tunnel with given parameters",
 				Details:    errorResponse.Message,
 				StatusCode: resp.StatusCode,
 			}
 		case http.StatusConflict:
-			return "", RequestError{
+			return nil, RequestError{
 				Message:    "The given hostname is already taken by different user",
 				Details:    errorResponse.Message,
 				StatusCode: resp.StatusCode,
 			}
 		case http.StatusUnprocessableEntity:
-			return "", RequestError{
+			return nil, RequestError{
 				Message: errorResponse.Message,
 				Details: `The given hostname didn't match the requirements:
 - Starts with a letter
@@ -166,7 +166,7 @@ func RegisterSite(publicKey ssh.PublicKey, requestedSiteID string) (string, erro
 				StatusCode: resp.StatusCode,
 			}
 		default:
-			return "", RequestError{
+			return nil, RequestError{
 				Message:    errorResponse.Message,
 				Details:    "Something unexpected happened, please let developers know",
 				StatusCode: resp.StatusCode,
@@ -177,18 +177,18 @@ func RegisterSite(publicKey ssh.PublicKey, requestedSiteID string) (string, erro
 	result := RegistrationSuccessResponse{}
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	communication.Debug(fmt.Sprintf("Site registration response: %v", result))
 
-	return result.SiteID, nil
+	return &result, nil
 }
 
-func GetLatestAvailableVersion() (string, error) {
+func GetLatestAvailableVersion() (*InfoSuccessResponse, error) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/info", apiURL), bytes.NewBuffer([]byte{}))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -207,31 +207,31 @@ func GetLatestAvailableVersion() (string, error) {
 
 	resp, err := netClient.Do(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Request for information failed, skipping")
+		return nil, fmt.Errorf("Request for information failed, skipping")
 	}
 
 	result := InfoSuccessResponse{}
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	communication.Debug(fmt.Sprintf("Info response: %v", result))
 
-	return result.Version, nil
+	return &result, nil
 }
 
 func userAgent() string {
-	return fmt.Sprintf("loophole-%s/%s-%s (%s/%s) %s",
+	return fmt.Sprintf("loophole-%s/%s-%s (%s/%s)",
 		config.Config.ClientMode,
 		config.Config.Version,
 		config.Config.CommitHash,
 		runtime.GOOS,
 		runtime.GOARCH,
-		urlmaker.HostURL)
+	)
 }

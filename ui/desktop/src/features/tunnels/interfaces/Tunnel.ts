@@ -1,5 +1,6 @@
 export default interface Tunnel {
   siteId?: string;
+  domain?: string;
   tunnelId: string;
   type: string;
   startTime?: Date;

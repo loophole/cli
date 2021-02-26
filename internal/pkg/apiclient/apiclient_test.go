@@ -36,7 +36,7 @@ func TestRegisterSiteSuccessOKShouldPropagateWithoutIdProvided(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error returned: %v", err)
 	}
-	if result != expectedSiteID {
+	if result.SiteID != expectedSiteID {
 		t.Fatalf("Site ID '%s' is different than expected: %s", expectedSiteID, result)
 	}
 }
@@ -66,7 +66,7 @@ func TestRegisterSiteSuccessCreatedShouldPropagateWithoutIdProvided(t *testing.T
 	if err != nil {
 		t.Fatalf("Unexpected error returned: %v", err)
 	}
-	if result != expectedSiteID {
+	if result.SiteID != expectedSiteID {
 		t.Fatalf("Site ID '%s' is different than expected: %s", expectedSiteID, result)
 	}
 }
@@ -97,7 +97,7 @@ func TestRegisterSiteSuccessOKShouldPropagateWithIdProvided(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error returned: %v", err)
 	}
-	if result != expectedSiteID {
+	if result.SiteID != expectedSiteID {
 		t.Fatalf("Site ID '%s' is different than expected: %s", result, expectedSiteID)
 	}
 }
@@ -127,7 +127,7 @@ func TestRegisterSiteSuccessCreatedShouldPropagateWithIdProvided(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error returned: %v", err)
 	}
-	if result != expectedSiteID {
+	if result.SiteID != expectedSiteID {
 		t.Fatalf("Site ID '%s' is different than expected: %s", result, expectedSiteID)
 	}
 }
@@ -164,8 +164,8 @@ func TestRegisterSiteError400ShouldPropagateError(t *testing.T) {
 	if !ok {
 		t.Fatalf("Expected RequestError to be returned")
 	}
-	if result != "" {
-		t.Fatalf("Expected site ID to be empty, got %s", result)
+	if result != nil {
+		t.Fatalf("Expected result to be nil, got %v", result)
 	}
 	if requestErr.StatusCode != expectedStatus {
 		t.Fatalf("Expected '%d' status, got '%d", expectedStatus, requestErr.StatusCode)
@@ -207,8 +207,8 @@ func TestRegisterSiteError401ShouldPropagateError(t *testing.T) {
 	if !ok {
 		t.Fatalf("Expected RequestError to be returned")
 	}
-	if result != "" {
-		t.Fatalf("Expected site ID to be empty, got %s", result)
+	if result != nil {
+		t.Fatalf("Expected result to be nil, got %v", result)
 	}
 	if requestErr.StatusCode != expectedStatus {
 		t.Fatalf("Expected '%d' status, got '%d", expectedStatus, requestErr.StatusCode)
@@ -250,8 +250,8 @@ func TestRegisterSiteError403ShouldPropagateError(t *testing.T) {
 	if !ok {
 		t.Fatalf("Expected RequestError to be returned")
 	}
-	if result != "" {
-		t.Fatalf("Expected site ID to be empty, got %s", result)
+	if result != nil {
+		t.Fatalf("Expected result to be nil, got %v", result)
 	}
 	if requestErr.StatusCode != expectedStatus {
 		t.Fatalf("Expected '%d' status, got '%d", expectedStatus, requestErr.StatusCode)
@@ -289,8 +289,8 @@ func TestRegisterTokenNotSavedReturns401(t *testing.T) {
 	if !ok {
 		t.Fatalf("Expected RequestError to be returned")
 	}
-	if result != "" {
-		t.Fatalf("Expected site ID to be empty, got %s", result)
+	if result != nil {
+		t.Fatalf("Expected result to be nil, got %v", result)
 	}
 	if requestErr.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("Expected '%d' status, got '%d", http.StatusUnauthorized, requestErr.StatusCode)
@@ -326,8 +326,8 @@ func TestRegisterTokenReadingProblemReturns401(t *testing.T) {
 	if !ok {
 		t.Fatalf("Expected RequestError to be returned")
 	}
-	if result != "" {
-		t.Fatalf("Expected site ID to be empty, got %s", result)
+	if result != nil {
+		t.Fatalf("Expected result to be nil, got %v", result)
 	}
 	if requestErr.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("Expected '%d' status, got '%d", http.StatusUnauthorized, requestErr.StatusCode)

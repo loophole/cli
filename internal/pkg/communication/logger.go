@@ -116,17 +116,18 @@ func (l *stdoutLogger) TunnelStartSuccess(remoteConfig coreModels.RemoteEndpoint
 
 	fmt.Fprintln(l.colorableOutput)
 	fmt.Fprintln(l.colorableOutput)
-	siteAddr := urlmaker.GetSiteURL("https", remoteConfig.SiteID)
+	siteAddr := urlmaker.GetSiteURL("https", remoteConfig.SiteID, remoteConfig.Domain)
 	fmt.Fprint(l.colorableOutput, "Forwarding ")
 	fmt.Fprint(l.colorableOutput, aurora.Green(siteAddr))
 	fmt.Fprint(l.colorableOutput, " -> ")
 	fmt.Fprint(l.colorableOutput, aurora.Green(localEndpoint))
 
-	if config.Config.Display.Verbose {
-		fmt.Fprintln(l.colorableOutput)
-		fmt.Fprintln(l.colorableOutput)
-		l.TunnelInfo(remoteConfig.TunnelID, "Scan the below QR code to open the site:")
-		fmt.Fprintln(l.colorableOutput)
+	if config.Config.Display.QR {
+		fmt.Fprintln(l.colorableOutput, "")
+		fmt.Fprintln(l.colorableOutput, "")
+
+		log.Info().Msg("Scan the below QR code to open the site:")
+		fmt.Fprintln(l.colorableOutput, "")
 		qrterminal.GenerateHalfBlock(siteAddr, qrterminal.L, l.colorableOutput)
 	}
 
@@ -181,9 +182,7 @@ func (l *stdoutLogger) LoadingStart(tunnelID string, loaderMessage string) {
 		l.loader.Prefix = fmt.Sprintf("%s ", loaderMessage)
 		l.loader.Start()
 	} else {
-		l.messageMutex.Lock()
 		fmt.Fprint(l.colorableOutput, loaderMessage)
-		l.messageMutex.Unlock()
 	}
 }
 

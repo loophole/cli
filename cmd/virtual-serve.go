@@ -102,12 +102,12 @@ func checkVersion() {
 		communication.Debug(fmt.Sprintf("Cannot parse current version '%s' as semver version, skipping further checking", config.Config.Version))
 		return
 	}
-	availableVersionParsed, err := semver.Make(availableVersion)
+	availableVersionParsed, err := semver.Make(availableVersion.Version)
 	if err != nil {
 		communication.Debug(fmt.Sprintf("Cannot parse available version '%s' as semver version, skipping further checking", availableVersion))
 		return
 	}
 	if currentVersionParsed.LT(availableVersionParsed) {
-		communication.NewVersionAvailable(availableVersion)
+		communication.NewVersionAvailable(availableVersion.Version)
 	}
 }

@@ -41,7 +41,8 @@ func handleClient(tunnelID string, client net.Conn, local net.Conn) {
 
 	// Start local -> client data transfer
 	go func() {
-		_, err := io.Copy(client, local)
+		nob, err := io.Copy(client, local)
+		communication.TunnelDebug(tunnelID, fmt.Sprintf("Transfered out %d bytes", nob))
 		if err != nil {
 			if err != io.EOF {
 				communication.TunnelWarn(tunnelID, fmt.Sprintf("Error copying local -> client: %s", err.Error()))
@@ -54,7 +55,8 @@ func handleClient(tunnelID string, client net.Conn, local net.Conn) {
 
 	// Start client -> local data transfer
 	go func() {
-		_, err := io.Copy(local, client)
+		nob, err := io.Copy(local, client)
+		communication.TunnelDebug(tunnelID, fmt.Sprintf("Received %d bytes", nob))
 		if err != nil {
 			if err != io.EOF {
 				communication.TunnelWarn(tunnelID, fmt.Sprintf("Error copying client -> local: %s", err.Error()))
@@ -68,9 +70,9 @@ func handleClient(tunnelID string, client net.Conn, local net.Conn) {
 	<-chDone
 }
 
-func registerDomain(publicKey *ssh.PublicKey, requestedSiteID string, tunnelID string) (string, error) {
+func registerDomain(publicKey *ssh.PublicKey, requestedSiteID string, tunnelID string) (*apiclient.RegistrationSuccessResponse, error) {
 	communication.LoadingStart(tunnelID, "Registering your domain...")
-	siteID, err := apiclient.RegisterSite(*publicKey, requestedSiteID)
+	registrationResult, err := apiclient.RegisterSite(*publicKey, requestedSiteID)
 	if err != nil {
 		communication.LoadingFailure(tunnelID, err)
 		if requestErr, ok := err.(apiclient.RequestError); ok {
@@ -81,10 +83,10 @@ func registerDomain(publicKey *ssh.PublicKey, requestedSiteID string, tunnelID s
 		} else {
 			communication.TunnelError(tunnelID, "Something unexpected happened, please let developers know")
 		}
-		return "", err
+		return nil, err
 	}
 	communication.LoadingSuccess(tunnelID)
-	return siteID, nil
+	return registrationResult, nil
 }
 
 func connectViaSSH(siteID string, tunnelID string, authMethod ssh.AuthMethod) (*ssh.Client, error) {
@@ -124,7 +126,8 @@ func connectViaSSH(siteID string, tunnelID string, authMethod ssh.AuthMethod) (*
 func createTLSReverseProxy(localEndpoint lm.Endpoint, remoteConfig lm.RemoteEndpointSpecs) (*http.Server, error) {
 	communication.LoadingStart(remoteConfig.TunnelID, "Starting local TLS proxy server")
 	serverBuilder := httpserver.New().
-		WithHostname(remoteConfig.SiteID).
+		WithSiteID(remoteConfig.SiteID).
+		WithDomain(remoteConfig.Domain).
 		Proxy().
 		ToEndpoint(localEndpoint)
 
@@ -171,7 +174,7 @@ func startLocalHTTPServer(tunnelID string, server *http.Server) (*lm.Endpoint, e
 		err := server.ServeTLS(localListener, "", "")
 		if err != nil {
 			communication.LoadingFailure(tunnelID, err)
-			communication.TunnelError(tunnelID, "Failed to start TLS server")
+			communication.TunnelStartFailure(tunnelID, err)
 		}
 	}()
 	communication.TunnelDebug(tunnelID, "Started server TLS server")
@@ -204,7 +207,8 @@ func parsePublicKey(tunnelID string, identityFile string) (ssh.AuthMethod, ssh.P
 func getStaticFileServer(exposeDirectoryConfig lm.ExposeDirectoryConfig) (*http.Server, error) {
 	communication.LoadingStart(exposeDirectoryConfig.Remote.TunnelID, "Starting local file server")
 	serverBuilder := httpserver.New().
-		WithHostname(exposeDirectoryConfig.Remote.SiteID).
+		WithSiteID(exposeDirectoryConfig.Remote.SiteID).
+		WithDomain(exposeDirectoryConfig.Remote.Domain).
 		ServeStatic().
 		FromDirectory(exposeDirectoryConfig.Local.Path)
 
@@ -226,7 +230,8 @@ func getStaticFileServer(exposeDirectoryConfig lm.ExposeDirectoryConfig) (*http.
 func getWebdavServer(exposeWebDavConfig lm.ExposeWebdavConfig) (*http.Server, error) {
 	communication.LoadingStart(exposeWebDavConfig.Remote.TunnelID, "Starting WebDav server")
 	serverBuilder := httpserver.New().
-		WithHostname(exposeWebDavConfig.Remote.SiteID).
+		WithSiteID(exposeWebDavConfig.Remote.SiteID).
+		WithDomain(exposeWebDavConfig.Remote.Domain).
 		ServeWebdav().
 		FromDirectory(exposeWebDavConfig.Local.Path)
 
@@ -261,11 +266,12 @@ func RegisterTunnel(remoteConfig *lm.RemoteEndpointSpecs) (ssh.AuthMethod, error
 	if err != nil {
 		return nil, err
 	}
-	siteID, err := registerDomain(&publicKey, remoteConfig.SiteID, remoteConfig.TunnelID)
+	registrationResult, err := registerDomain(&publicKey, remoteConfig.SiteID, remoteConfig.TunnelID)
 	if err != nil {
 		return nil, err
 	}
-	remoteConfig.SiteID = siteID
+	remoteConfig.SiteID = registrationResult.SiteID
+	remoteConfig.Domain = registrationResult.Domain
 	communication.TunnelStart(remoteConfig.TunnelID)
 
 	return publicKeyAuthMethod, nil
@@ -345,7 +351,7 @@ func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs,
 			Timeout:   time.Second * 30,
 			Transport: netTransport,
 		}
-		_, err := netClient.Get(urlmaker.GetSiteURL("https", remoteEndpointSpecs.SiteID))
+		_, err := netClient.Get(urlmaker.GetSiteURL("https", remoteEndpointSpecs.SiteID, remoteEndpointSpecs.Domain))
 
 		if err != nil {
 			communication.TunnelError(remoteEndpointSpecs.TunnelID, "TLS Certificate failed to provision. Will be obtained with first request made by any client, therefore first execution may be slower")
@@ -406,6 +412,7 @@ func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs,
 			communication.TunnelDebug(remoteEndpointSpecs.TunnelID, "Handling client")
 			go func() {
 				communication.TunnelInfo(remoteEndpointSpecs.TunnelID, "Succeeded to accept connection over HTTPS")
+				communication.TunnelDebug(remoteEndpointSpecs.TunnelID, fmt.Sprintf("Dialing into local proxy for HTTPS: %s", localListenerEndpoint.URI()))
 				local, err := net.Dial("tcp", localListenerEndpoint.URI())
 				if err != nil {
 					communication.TunnelError(remoteEndpointSpecs.TunnelID, "Dialing into local proxy for HTTPS failed")

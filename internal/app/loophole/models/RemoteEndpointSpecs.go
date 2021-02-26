@@ -7,6 +7,7 @@ type RemoteEndpointSpecs struct {
 	APIEndpoint           Endpoint `json:"apiEndpoint"`
 	IdentityFile          string   `json:"identityFile"`
 	SiteID                string   `json:"siteId"`
+	Domain                string   `json:"domain"`
 	TunnelID              string   `json:"tunnelId"`
 	BasicAuthUsername     string   `json:"basicAuthUsername"`
 	BasicAuthPassword     string   `json:"basicAuthPassword"`
