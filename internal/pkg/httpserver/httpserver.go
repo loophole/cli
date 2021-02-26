@@ -109,6 +109,15 @@ func (psb *proxyServerBuilder) Build() (*http.Server, error) {
 
 	proxy := httputil.NewSingleHostReverseProxy(target)
 
+	defaultDirector := proxy.Director
+
+	proxy.Director = func(req *http.Request) {
+		defaultDirector(req)
+
+		req.Header.Set("X-Forwarded-Host", urlmaker.GetSiteFQDN(psb.serverBuilder.siteID, psb.serverBuilder.domain))
+		req.Header.Set("X-Forwarded-Proto", "https")
+	}
+
 	if !psb.disableProxyErrorPage {
 		proxy.ErrorHandler = proxyErrorHandler
 	}
