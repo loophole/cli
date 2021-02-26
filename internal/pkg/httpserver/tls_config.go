@@ -14,7 +14,7 @@ import (
 func getTLSConfig(siteID string, domain string) *tls.Config {
 	certManager := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
-		HostPolicy: autocert.HostWhitelist(urlmaker.GetSiteFQDN(siteID, domain)),
+		HostPolicy: autocert.HostWhitelist(urlmaker.GetSiteFQDN(siteID, "loophole.site")),
 		Cache:      autocert.DirCache(cache.GetLocalStorageDir("certs")),
 		Email:      fmt.Sprintf("lh-%s@main.dev", siteID),
 	}

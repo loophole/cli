@@ -8,6 +8,7 @@ type LocalHTTPEndpointSpecs struct {
 	Port  int32  `json:"port"`
 	Host  string `json:"host"`
 	HTTPS bool   `json:"https"`
+	Path  string `json:"path"`
 }
 
 func Validate(options *LocalHTTPEndpointSpecs) error {

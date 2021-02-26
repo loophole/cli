@@ -1,6 +1,10 @@
 import React from "react";
 import classNames from "classnames";
-import { isLocalHostValid, isLocalPortValid } from "../../features/validator/validators";
+import {
+  isLocalHostValid,
+  isLocalPortValid,
+  isUrlPathValid,
+} from "../../features/validator/validators";
 
 interface LocalWebserverSettingsProps {
   hostnameValue: string;
@@ -9,6 +13,10 @@ interface LocalWebserverSettingsProps {
   portChangeCallback: Function;
   httpsChangeCallback: Function;
   httpsValue: boolean;
+  usingPathValue: boolean;
+  usingPathChangeCallback: Function;
+  urlPathValue: string;
+  urlPathChangeCallback: Function;
 }
 
 const LocalWebserverSettings = (
@@ -18,6 +26,8 @@ const LocalWebserverSettings = (
   const setPort = props.portChangeCallback;
   const port = parseInt(props.portValue, 10);
   const setHTTPS = props.httpsChangeCallback;
+  const setUsingPath = props.usingPathChangeCallback;
+  const setUrlPath = props.urlPathChangeCallback;
 
   const isHostValid = (): boolean => {
     return isLocalHostValid(props.hostnameValue);
@@ -25,6 +35,9 @@ const LocalWebserverSettings = (
 
   const isPortValid = (): boolean => {
     return isLocalPortValid(port);
+  };
+  const isPathValid = (): boolean => {
+    return isUrlPathValid(props.urlPathValue);
   };
 
   return (
@@ -95,6 +108,54 @@ const LocalWebserverSettings = (
           )}
         </div>
       </div>
+      <div className="field">
+        <div className="control">
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              onChange={(e) => {
+                setUsingPath(!props.usingPathValue);
+              }}
+            />{" "}
+            I want to serve subpath only.
+          </label>
+        </div>
+      </div>
+      {props.usingPathValue ? (
+        <div className="field">
+          <label className="label">Subpath</label>
+          <div className="control has-icons-left has-icons-right">
+            <input
+              className={classNames({
+                input: true,
+                "is-success": isPathValid(),
+                "is-danger": !isPathValid(),
+              })}
+              type="text"
+              placeholder="Subpath which you want to expose"
+              value={props.urlPathValue}
+              onChange={(e) => setUrlPath(e.target.value)}
+            />
+            <span className="icon is-small is-left">
+              <i className="fas fa-signature"></i>
+            </span>
+            <span className="icon is-small is-right">
+              <i
+                className={classNames({
+                  fas: true,
+                  "fa-check": isPathValid(),
+                  "fa-exclamation-triangle": !isPathValid(),
+                })}
+              ></i>
+            </span>
+          </div>
+          {isPathValid() ? (
+            <p className="help is-success">Path is valid</p>
+          ) : (
+            <p className="help is-danger">Path is invalid</p>
+          )}
+        </div>
+      ) : null}
       <div className="field">
         <div className="control">
           <label className="checkbox">

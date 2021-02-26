@@ -99,10 +99,15 @@ func (psb *proxyServerBuilder) EnableInsecureHTTPSBackend() ProxyServerBuilder {
 }
 
 func (psb *proxyServerBuilder) Build() (*http.Server, error) {
-	proxy := httputil.NewSingleHostReverseProxy(&url.URL{
+	target := &url.URL{
 		Scheme: psb.endpoint.Protocol,
 		Host:   psb.endpoint.Hostname(),
-	})
+	}
+	if psb.endpoint.Path != "" {
+		target.Path = psb.endpoint.Path
+	}
+
+	proxy := httputil.NewSingleHostReverseProxy(target)
 
 	if !psb.disableProxyErrorPage {
 		proxy.ErrorHandler = proxyErrorHandler
