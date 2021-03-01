@@ -70,6 +70,7 @@ func init() {
 	initServeCommand(httpCmd)
 	httpCmd.Flags().BoolVar(&localEndpointSpecs.HTTPS, "https", false, "use if your server is already using HTTPS")
 	httpCmd.Flags().BoolVar(&remoteEndpointSpecs.DisableProxyErrorPage, "disable-proxy-error-page", false, "disable proxy error page and return 502 when your server is not available")
+	httpCmd.Flags().StringVar(&localEndpointSpecs.Path, "path", "", "specify path you wish to expose")
 
 	rootCmd.AddCommand(httpCmd)
 }

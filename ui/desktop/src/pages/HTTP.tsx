@@ -33,6 +33,8 @@ const HTTP = () => {
   const [basicAuthUsername, setBasicAuthUsername] = useState("");
   const [basicAuthPassword, setBasicAuthPassword] = useState("");
   const [disableProxyErrorPage, setDisableProxyErrorPage] = useState(false);
+  const [usingUrlPath, setUsingUrlPath] = useState(false);
+  const [urlPath, setUrlPath] = useState("")
 
   const areInputsValid = (): boolean => {
     if (!isLocalHostValid(hostname)) return false;
@@ -69,6 +71,9 @@ const HTTP = () => {
       options.remote.basicAuthUsername = basicAuthUsername;
       options.remote.basicAuthPassword = basicAuthPassword;
     }
+    if (usingUrlPath) {
+      options.local.path = urlPath;
+    }
 
     options.remote.disableProxyErrorPage = disableProxyErrorPage;
 
@@ -100,6 +105,10 @@ const HTTP = () => {
                 portChangeCallback={setPort}
                 httpsValue={isHTTPS}
                 httpsChangeCallback={setIsHTTPS}
+                usingPathValue={usingUrlPath}
+                usingPathChangeCallback={setUsingUrlPath}
+                urlPathValue={urlPath}
+                urlPathChangeCallback={setUrlPath}
               />
             </div>
             <div className="column is-12">

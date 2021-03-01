@@ -26,6 +26,10 @@ export const isLocalPortValid = (port: number): boolean => {
   return port > 0 && port <= 65535;
 };
 
+export const isUrlPathValid = (path: string): boolean => {
+  return path.length > 0;
+};
+
 export const isBasicAuthUsernameValid = (
   basicAuthUsername: string
 ): boolean => {

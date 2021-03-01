@@ -287,6 +287,7 @@ func ForwardPort(exposeHTTPConfig lm.ExposeHTTPConfig, publicKeyAuthMethod ssh.A
 		Protocol: protocol,
 		Host:     exposeHTTPConfig.Local.Host,
 		Port:     exposeHTTPConfig.Local.Port,
+		Path:     exposeHTTPConfig.Local.Path,
 	}
 
 	server, err := createTLSReverseProxy(localEndpoint, exposeHTTPConfig.Remote)
