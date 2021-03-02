@@ -29,7 +29,7 @@ $ ./loophole path ./my-directory
 ```
 
 ```
-#Forward local directory to the world using WebDAV
+# Forward local directory to the world using WebDAV
 $ ./loophole webdav ./my-directory
 ```
 
