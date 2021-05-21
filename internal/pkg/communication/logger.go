@@ -207,7 +207,7 @@ func (l *stdoutLogger) LoadingFailure(tunnelID string, err error) {
 func (l *stdoutLogger) NewVersionAvailable(availableVersion string) {
 	l.messageMutex.Lock()
 	defer l.messageMutex.Unlock()
-	fmt.Fprint(l.colorableOutput, aurora.Cyan(fmt.Sprintf("There is new version available, to get it please visit %s",
+	fmt.Fprintln(l.colorableOutput, aurora.Cyan(fmt.Sprintf("There is new version available, to get it please visit %s",
 		fmt.Sprintf("https://github.com/loophole/cli/releases/tag/%s", availableVersion))))
 }
 
