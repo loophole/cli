@@ -259,6 +259,7 @@ func Display() {
 	}
 	defer ui.Close()
 
+	loophole.CheckVersion()
 	<-ui.Done()
 }
 

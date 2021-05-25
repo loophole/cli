@@ -15,6 +15,7 @@ require (
 	github.com/mdp/qrterminal v1.0.1
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/ncruces/zenity v0.5.2
+	github.com/pkg/browser v0.0.0-20210115035449-ce105d075bb4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rs/zerolog v1.19.0
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966

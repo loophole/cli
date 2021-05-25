@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/blang/semver/v4"
 	"github.com/loophole/cli/config"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/apiclient"
@@ -14,6 +15,8 @@ import (
 	"github.com/loophole/cli/internal/pkg/httpserver"
 	"github.com/loophole/cli/internal/pkg/keys"
 	"github.com/loophole/cli/internal/pkg/urlmaker"
+	"github.com/ncruces/zenity"
+	"github.com/pkg/browser"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -33,6 +36,34 @@ const (
 var remoteEndpoint = lm.Endpoint{
 	Host: "127.0.0.1",
 	Port: 80,
+}
+
+func CheckVersion() {
+	availableVersion, err := apiclient.GetLatestAvailableVersion()
+	if err != nil {
+		communication.Debug("There was a problem obtaining info response, skipping further checking")
+		return
+	}
+	currentVersionParsed, err := semver.Make(config.Config.Version)
+	if err != nil {
+		communication.Debug(fmt.Sprintf("Cannot parse current version '%s' as semver version, skipping further checking", config.Config.Version))
+		return
+	}
+	availableVersionParsed, err := semver.Make(availableVersion.Version)
+	if err != nil {
+		communication.Debug(fmt.Sprintf("Cannot parse available version '%s' as semver version, skipping further checking", availableVersion))
+		return
+	}
+	if currentVersionParsed.LT(availableVersionParsed) {
+		if config.Config.ClientMode == "cli" {
+			communication.NewVersionAvailable(availableVersion.Version)
+		} else {
+			response, _ := zenity.Question(fmt.Sprintf("A new version is available at https://github.com/loophole/cli/releases/tag/%s \nDo you want to open the link in your browser now?", availableVersion.Version), zenity.NoWrap(), zenity.Title("New version available!"))
+			if response {
+				browser.OpenURL(fmt.Sprintf("https://github.com/loophole/cli/releases/tag/%s", availableVersion.Version))
+			}
+		}
+	}
 }
 
 func handleClient(tunnelID string, client net.Conn, local net.Conn) {

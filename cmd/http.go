@@ -29,7 +29,7 @@ To expose port running on some local host e.g. 192.168.1.20 use 'loophole http <
 		idToken := token.GetIdToken()
 		communication.ApplicationStart(loggedIn, idToken)
 
-		checkVersion()
+		loophole.CheckVersion()
 
 		localEndpointSpecs.Host = "127.0.0.1"
 		if len(args) > 1 {

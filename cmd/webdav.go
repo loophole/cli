@@ -28,7 +28,7 @@ To expose local directory via webdav (e.g. /data/my-data) simply use 'loophole w
 		idToken := token.GetIdToken()
 		communication.ApplicationStart(loggedIn, idToken)
 
-		checkVersion()
+		loophole.CheckVersion()
 
 		webdavEndpointSpecs.Path = args[0]
 		quitChannel := make(chan bool)
