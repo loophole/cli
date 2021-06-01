@@ -15,8 +15,10 @@ import (
 	"github.com/loophole/cli/internal/pkg/httpserver"
 	"github.com/loophole/cli/internal/pkg/keys"
 	"github.com/loophole/cli/internal/pkg/urlmaker"
+	"github.com/mitchellh/go-homedir"
 	"github.com/ncruces/zenity"
 	"github.com/pkg/browser"
+	"github.com/spf13/viper"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -58,12 +60,48 @@ func CheckVersion() {
 		if config.Config.ClientMode == "cli" {
 			communication.NewVersionAvailable(availableVersion.Version)
 		} else {
+			remind, _ := remindAgainCheck()
+			if !remind {
+				return
+			}
 			response, _ := zenity.Question(fmt.Sprintf("A new version is available at https://github.com/loophole/cli/releases/tag/%s \nDo you want to open the link in your browser now?", availableVersion.Version), zenity.NoWrap(), zenity.Title("New version available!"))
 			if response {
 				browser.OpenURL(fmt.Sprintf("https://github.com/loophole/cli/releases/tag/%s", availableVersion.Version))
 			}
 		}
 	}
+}
+
+func remindAgainCheck() (bool, error) { //TODO: Error handling, moving this function to a more appropriate file (probably to config pkg)
+	home, err := homedir.Dir()
+	if err != nil {
+		return true, err
+	}
+
+	layout := "2006-02-01"                                        //golangs arcane time format string
+	viper.SetDefault("last-reminder", time.Time{}.Format(layout)) //zero value for time
+	viper.SetConfigName("config")                                 // name of config file (without extension)
+	viper.SetConfigType("json")                                   // REQUIRED if the config file does not have the extension in the name
+	viper.AddConfigPath(fmt.Sprintf("%s/.loophole/", home))
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok { //create a config if none exist yet
+			viper.WriteConfigAs(fmt.Sprintf("%s/.loophole/config.json", home))
+		} else {
+			return true, err
+		}
+	}
+
+	t, err := time.Parse(layout, fmt.Sprintf("%v", viper.Get("last-reminder")))
+	if err != nil {
+		return true, err
+	}
+	if (t.Year() < time.Now().Year()) || (t.YearDay() < time.Now().YearDay()) { //check if reminder has been done today
+		viper.Set("last-reminder", time.Now().Format(layout))
+		viper.WriteConfigAs("/home/work/.loophole/config.json")
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func handleClient(tunnelID string, client net.Conn, local net.Conn) {
