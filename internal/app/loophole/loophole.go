@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/blang/semver/v4"
@@ -64,12 +65,34 @@ func CheckVersion() {
 			if !remind {
 				return
 			}
-			response, _ := zenity.Question(fmt.Sprintf("A new version is available at https://github.com/loophole/cli/releases/tag/%s \nDo you want to open the link in your browser now?", availableVersion.Version), zenity.NoWrap(), zenity.Title("New version available!"))
+			dlLink := getDownloadLink(availableVersion.Version)
+			response, _ := zenity.Question(fmt.Sprintf("A new version is available for you at \n%s \nDo you want to open the link in your browser now?", dlLink), zenity.NoWrap(), zenity.Title("New version available!"))
 			if response {
-				browser.OpenURL(fmt.Sprintf("https://github.com/loophole/cli/releases/tag/%s", availableVersion.Version))
+				browser.OpenURL(dlLink)
 			}
 		}
 	}
+}
+
+func getDownloadLink(availableVersion string) string {
+	archiveExt := ".tar.gz"
+	arch := runtime.GOARCH
+	if arch == "windows" {
+		archiveExt = ".zip"
+	} else if arch == "darwin" {
+		arch = "macos"
+	}
+	if arch == "amd64" {
+		arch = "64bit"
+	} else if arch == "386" {
+		arch = "32bit"
+	} else {
+		communication.Error("There was an error detecting your system architecture.") //if arch is unexpected, only link to the release page
+		return fmt.Sprintf("https://github.com/loophole/cli/releases/tag/%s", availableVersion)
+	}
+	res := fmt.Sprintf("https://github.com/loophole/cli/releases/download/%s/loophole-desktop_%s_%s_%s%s", availableVersion, availableVersion, runtime.GOOS, arch, archiveExt)
+	fmt.Println(res)
+	return res
 }
 
 func remindAgainCheck() (bool, error) { //TODO: Error handling, moving this function to a more appropriate file (probably to config pkg)
