@@ -11,7 +11,6 @@ import (
 	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/mitchellh/go-homedir"
 	"github.com/ncruces/zenity"
-	"github.com/pkg/browser"
 	"github.com/spf13/viper"
 )
 
@@ -42,34 +41,35 @@ func CheckVersion() {
 			if !remind {
 				return
 			}
-			dlLink := getDownloadLink(availableVersion.Version)
-			response, _ := zenity.Question(fmt.Sprintf("A new version is available for you at \n%s \nDo you want to open the link in your browser now?", dlLink), zenity.NoWrap(), zenity.Title("New version available!"))
-			if response {
-				browser.OpenURL(dlLink)
+			downloadlink := getDownloadLink(availableVersion.Version)
+			err = zenity.Notify(fmt.Sprintf("A new version is available for you at \n%s \n", downloadlink), zenity.Title("New version available!"))
+			if err != nil {
+				communication.Debug(err.Error()) //errors in showing a download link should be noted, but not interrupt the program
 			}
 		}
 	}
 }
 
 func getDownloadLink(availableVersion string) string {
-	archiveExt := ".tar.gz"
-	arch := runtime.GOARCH
-	if arch == "windows" {
-		archiveExt = ".zip"
-	} else if arch == "darwin" {
-		arch = "macos"
+	archiveType := ".tar.gz"
+	operatingSystem := runtime.GOOS
+	architecture := runtime.GOARCH
+	if operatingSystem == "windows" {
+		archiveType = ".zip"
+	} else if operatingSystem == "darwin" {
+		operatingSystem = "macos" //rename for use in downloadlink
 	}
-	if arch == "amd64" {
-		arch = "64bit"
-	} else if arch == "386" {
-		arch = "32bit"
+	if architecture == "amd64" {
+		architecture = "64bit"
+	} else if architecture == "386" {
+		architecture = "32bit"
 	} else {
 		communication.Error("There was an error detecting your system architecture.") //if arch is unexpected, only link to the release page
 		return fmt.Sprintf("https://github.com/loophole/cli/releases/tag/%s", availableVersion)
 	}
-	res := fmt.Sprintf("https://github.com/loophole/cli/releases/download/%s/loophole-desktop_%s_%s_%s%s", availableVersion, availableVersion, runtime.GOOS, arch, archiveExt)
-	fmt.Println(res)
-	return res
+	link := fmt.Sprintf("https://github.com/loophole/cli/releases/download/%s/loophole-desktop_%s_%s_%s%s", availableVersion, availableVersion, operatingSystem, operatingSystem, archiveType)
+	fmt.Println(link)
+	return link
 }
 
 func remindAgainCheck() (bool, error) {
@@ -81,7 +81,7 @@ func remindAgainCheck() (bool, error) {
 	layout := "2006-02-01"                                        //golangs arcane time format string
 	viper.SetDefault("last-reminder", time.Time{}.Format(layout)) //zero value for time
 	viper.SetConfigName("config")                                 // name of config file (without extension)
-	viper.SetConfigType("json")                                   // REQUIRED if the config file does not have the extension in the name
+	viper.SetConfigType("json")
 	viper.AddConfigPath(fmt.Sprintf("%s/.loophole/", home))
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok { //create a config if none exist yet
