@@ -21,6 +21,7 @@ import (
 	"github.com/loophole/cli/internal/pkg/cache"
 	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/loophole/cli/internal/pkg/token"
+	"github.com/loophole/cli/internal/pkg/updatecheck"
 )
 
 var upgrader = websocket.Upgrader{} // use default options
@@ -259,7 +260,7 @@ func Display() {
 	}
 	defer ui.Close()
 
-	loophole.CheckVersion()
+	updatecheck.CheckVersion()
 	<-ui.Done()
 }
 
