@@ -35,7 +35,7 @@ func CheckVersion() {
 		if config.Config.ClientMode == "cli" {
 			communication.NewVersionAvailable(availableVersion.Version)
 		} else {
-			remind, usePrompt, err := remindAgainCheck(availableVersion.Version)
+			remind, usePrompt, err := remindAgainCheck(availableVersionParsed)
 			if err != nil {
 				communication.Error(err.Error()) //errors in retrieving a download link should be noted, but not interrupt the program
 			}
@@ -81,14 +81,14 @@ func getDownloadLink(availableVersion string) string {
 	return link
 }
 
-func remindAgainCheck(availableVersion string) (bool, bool, error) {
+func remindAgainCheck(availableVersionParsed semver.Version) (bool, bool, error) {
 	home, err := homedir.Dir()
 	if err != nil {
 		return true, false, err
 	}
 
 	viper.SetDefault("lastreminder", time.Time{})         //date of last reminder, default zero value for time
-	viper.SetDefault("availableversion", "1.0.0-beta.14") //TODO: last seen latest available version
+	viper.SetDefault("availableversion", "1.0.0-beta.14") //last seen latest version
 	viper.SetDefault("remindercount", 3)                  //counts to zero, then switches from prompt to notification reminder
 	viper.SetConfigName("config")                         // name of config file (without extension)
 	viper.SetConfigType("json")
@@ -101,6 +101,11 @@ func remindAgainCheck(availableVersion string) (bool, bool, error) {
 		}
 	}
 
+	lastSeenLatestVersion, err := semver.Make(viper.GetString("availableversion"))
+	if availableVersionParsed.GT(lastSeenLatestVersion) { //reset reminder count if new version is out
+		viper.Set("availableversion", availableVersionParsed.String())
+		viper.Set("remindercount", 3)
+	}
 	if err != nil {
 		return true, false, err
 	}
