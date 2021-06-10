@@ -11,6 +11,7 @@ import (
 	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/mitchellh/go-homedir"
 	"github.com/ncruces/zenity"
+	"github.com/pkg/browser"
 	"github.com/spf13/viper"
 )
 
@@ -34,7 +35,7 @@ func CheckVersion() {
 		if config.Config.ClientMode == "cli" {
 			communication.NewVersionAvailable(availableVersion.Version)
 		} else {
-			remind, err := remindAgainCheck()
+			remind, usePrompt, err := remindAgainCheck(availableVersion.Version)
 			if err != nil {
 				communication.Error(err.Error()) //errors in retrieving a download link should be noted, but not interrupt the program
 			}
@@ -42,7 +43,15 @@ func CheckVersion() {
 				return
 			}
 			downloadlink := getDownloadLink(availableVersion.Version)
-			err = zenity.Notify(fmt.Sprintf("A new version is available for you at \n%s \n", downloadlink), zenity.Title("New version available!"))
+			if usePrompt {
+				openLink := false
+				openLink, err = zenity.Question(fmt.Sprintf("A new version is available for you at \n%s \n Do you want to open this link in your browser?", downloadlink), zenity.NoWrap(), zenity.Title("New version available!"))
+				if openLink {
+					browser.OpenURL(downloadlink)
+				}
+			} else {
+				err = zenity.Notify(fmt.Sprintf("A new version is available for you at \n%s \n", downloadlink), zenity.Title("New version available!"))
+			}
 			if err != nil {
 				communication.Debug(err.Error()) //errors in showing a download link should be noted, but not interrupt the program
 			}
@@ -67,39 +76,46 @@ func getDownloadLink(availableVersion string) string {
 		communication.Error("There was an error detecting your system architecture.") //if arch is unexpected, only link to the release page
 		return fmt.Sprintf("https://github.com/loophole/cli/releases/tag/%s", availableVersion)
 	}
-	link := fmt.Sprintf("https://github.com/loophole/cli/releases/download/%s/loophole-desktop_%s_%s_%s%s", availableVersion, availableVersion, operatingSystem, operatingSystem, archiveType)
+	link := fmt.Sprintf("https://github.com/loophole/cli/releases/download/%s/loophole-desktop_%s_%s_%s%s", availableVersion, availableVersion, operatingSystem, architecture, archiveType)
 	fmt.Println(link)
 	return link
 }
 
-func remindAgainCheck() (bool, error) {
+func remindAgainCheck(availableVersion string) (bool, bool, error) {
 	home, err := homedir.Dir()
 	if err != nil {
-		return true, err
+		return true, false, err
 	}
 
-	layout := "2006-02-01"                                        //golangs arcane time format string
-	viper.SetDefault("last-reminder", time.Time{}.Format(layout)) //zero value for time
-	viper.SetConfigName("config")                                 // name of config file (without extension)
+	viper.SetDefault("lastreminder", time.Time{})         //date of last reminder, default zero value for time
+	viper.SetDefault("availableversion", "1.0.0-beta.14") //TODO: last seen latest available version
+	viper.SetDefault("remindercount", 3)                  //counts to zero, then switches from prompt to notification reminder
+	viper.SetConfigName("config")                         // name of config file (without extension)
 	viper.SetConfigType("json")
 	viper.AddConfigPath(fmt.Sprintf("%s/.loophole/", home))
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok { //create a config if none exist yet
 			viper.WriteConfigAs(fmt.Sprintf("%s/.loophole/config.json", home))
 		} else {
-			return true, err
+			return true, false, err
 		}
 	}
 
-	t, err := time.Parse(layout, fmt.Sprintf("%v", viper.Get("last-reminder")))
 	if err != nil {
-		return true, err
+		return true, false, err
 	}
-	if (t.Year() < time.Now().Year()) || (t.YearDay() < time.Now().YearDay()) { //check if reminder has been done today
-		viper.Set("last-reminder", time.Now().Format(layout))
+	lastReminder := viper.GetTime("lastreminder")
+	if (lastReminder.Year() < time.Now().Year()) || (lastReminder.YearDay() < time.Now().YearDay()) { //check if reminder has been done today
+		viper.Set("lastreminder", time.Now())
 		viper.WriteConfigAs("/home/work/.loophole/config.json")
-		return true, nil
+		if viper.GetInt("remindercount") < 1 {
+			return true, false, nil
+		} else {
+			viper.Set("remindercount", viper.GetInt("remindercount")-1)
+			viper.WriteConfigAs("/home/work/.loophole/config.json")
+			return true, true, nil
+		}
 	}
 
-	return false, nil
+	return false, false, nil
 }
