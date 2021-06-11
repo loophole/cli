@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func CheckVersion() {
+func CheckForUpdates() {
 	availableVersion, err := apiclient.GetLatestAvailableVersion()
 	if err != nil {
 		communication.Debug("There was a problem obtaining info response, skipping further checking")
@@ -37,14 +37,14 @@ func CheckVersion() {
 		} else {
 			remind, usePrompt, err := remindAgainCheck(availableVersionParsed)
 			if err != nil {
-				communication.Error(err.Error()) //errors in retrieving a download link should be noted, but not interrupt the program
+				communication.Error(err.Error()) //errors in determining the type reminder should be noted, but not interrupt the program
 			}
 			if !remind {
 				return
 			}
 			downloadlink := getDownloadLink(availableVersion.Version)
-			if usePrompt {
-				openLink := false
+			if usePrompt { //either use a notification that the user needs to click away, or use a notification they can ignore
+				openLink := false //needs to be declared here instead of below with := so we can still have access to err outside of this scope
 				openLink, err = zenity.Question(fmt.Sprintf("A new version is available for you at \n%s \n Do you want to open this link in your browser?", downloadlink), zenity.NoWrap(), zenity.Title("New version available!"))
 				if openLink {
 					browser.OpenURL(downloadlink)
@@ -66,7 +66,7 @@ func getDownloadLink(availableVersion string) string {
 	if operatingSystem == "windows" {
 		archiveType = ".zip"
 	} else if operatingSystem == "darwin" {
-		operatingSystem = "macos" //rename for use in downloadlink
+		operatingSystem = "macos" //rename for use in download url
 	}
 	if architecture == "amd64" {
 		architecture = "64bit"
@@ -90,7 +90,7 @@ func remindAgainCheck(availableVersionParsed semver.Version) (bool, bool, error)
 	viper.SetDefault("lastreminder", time.Time{})         //date of last reminder, default zero value for time
 	viper.SetDefault("availableversion", "1.0.0-beta.14") //last seen latest version
 	viper.SetDefault("remindercount", 3)                  //counts to zero, then switches from prompt to notification reminder
-	viper.SetConfigName("config")                         // name of config file (without extension)
+	viper.SetConfigName("config")                         //name of config file (without extension)
 	viper.SetConfigType("json")
 	viper.AddConfigPath(fmt.Sprintf("%s/.loophole/", home))
 	if err := viper.ReadInConfig(); err != nil {

@@ -260,7 +260,7 @@ func Display() {
 	}
 	defer ui.Close()
 
-	updatecheck.CheckVersion()
+	updatecheck.CheckForUpdates()
 	<-ui.Done()
 }
 

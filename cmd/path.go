@@ -27,7 +27,7 @@ To expose local directory (e.g. /data/my-data) simply use 'loophole path /data/m
 		idToken := token.GetIdToken()
 		communication.ApplicationStart(loggedIn, idToken)
 
-		updatecheck.CheckVersion()
+		updatecheck.CheckForUpdates()
 
 		dirEndpointSpecs.Path = args[0]
 		quitChannel := make(chan bool)
