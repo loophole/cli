@@ -42,15 +42,16 @@ func CheckForUpdates() {
 			if !remind {
 				return
 			}
-			downloadlink := getDownloadLink(availableVersion.Version)
 			if usePrompt { //either use a notification that the user needs to click away, or use a notification they can ignore
+				downloadlink := getDownloadLink(availableVersion.Version)
 				openLink := false //needs to be declared here instead of below with := so we can still have access to err outside of this scope
 				openLink, err = zenity.Question(fmt.Sprintf("A new version is available for you at \n%s \n Do you want to open this link in your browser?", downloadlink), zenity.NoWrap(), zenity.Title("New version available!"))
 				if openLink {
 					browser.OpenURL(downloadlink)
 				}
 			} else {
-				err = zenity.Notify(fmt.Sprintf("A new version is available for you at \n%s \n", downloadlink), zenity.Title("New version available!"))
+				downloadlink := "https://loophole.cloud/download" //this notification isn't clickable, so the link should be something the user can remember
+				err = zenity.Notify(fmt.Sprintf("A new version is available for you, please visit \n%s \n", downloadlink), zenity.Title("New version available!"))
 			}
 			if err != nil {
 				communication.Debug(err.Error()) //errors in showing a download link should be noted, but not interrupt the program
@@ -112,12 +113,18 @@ func remindAgainCheck(availableVersionParsed semver.Version) (bool, bool, error)
 	lastReminder := viper.GetTime("lastreminder")
 	if (lastReminder.Year() < time.Now().Year()) || (lastReminder.YearDay() < time.Now().YearDay()) { //check if reminder has been done today
 		viper.Set("lastreminder", time.Now())
-		viper.WriteConfigAs("/home/work/.loophole/config.json")
+		err = viper.WriteConfigAs(fmt.Sprintf("%s/.loophole/config.json", home))
+		if err != nil {
+			return true, false, err
+		}
 		if viper.GetInt("remindercount") < 1 {
 			return true, false, nil
 		} else {
 			viper.Set("remindercount", viper.GetInt("remindercount")-1)
-			viper.WriteConfigAs("/home/work/.loophole/config.json")
+			err = viper.WriteConfigAs(fmt.Sprintf("%s/.loophole/config.json", home))
+			if err != nil {
+				return true, false, err
+			}
 			return true, true, nil
 		}
 	}
