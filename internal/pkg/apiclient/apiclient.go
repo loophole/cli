@@ -122,7 +122,8 @@ func RegisterSite(publicKey ssh.PublicKey, requestedSiteID string) (*Registratio
 				Message: errorResponse.Message,
 				Details: `The given hostname didn't match the requirements:
 - Starts with a letter
-- Contains only small letters and numbers`,
+- Contains only small letters, numbers and single dashes (-) between them
+- Ends with a small letter or number`,
 				StatusCode: resp.StatusCode,
 			}
 		case http.StatusUnauthorized:
@@ -161,7 +162,8 @@ func RegisterSite(publicKey ssh.PublicKey, requestedSiteID string) (*Registratio
 				Message: errorResponse.Message,
 				Details: `The given hostname didn't match the requirements:
 - Starts with a letter
-- Contains only small letters and numbers
+- Contains only small letters, numbers and single dashes (-) between them
+- Ends with a small letter or number
 - Minimum 6 characters (not applicable for premium users`,
 				StatusCode: resp.StatusCode,
 			}
