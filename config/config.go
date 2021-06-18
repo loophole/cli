@@ -47,6 +47,8 @@ func SetupViperConfig() error {
 	viper.SetDefault("lastreminder", time.Time{})         //date of last reminder, default is zero value for time
 	viper.SetDefault("availableversion", "1.0.0-beta.14") //last seen latest version
 	viper.SetDefault("remindercount", 3)                  //counts to zero, then switches from prompt to notification reminder
+	viper.SetDefault("savehostnames", true)
+	viper.SetDefault("usedhostnames", []string{})
 	viper.SetConfigName("config")
 	viper.SetConfigType("json")
 	viper.AddConfigPath(fmt.Sprintf("%s/.loophole/", home))
