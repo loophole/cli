@@ -9,7 +9,6 @@ import (
 	"github.com/loophole/cli/config"
 	"github.com/loophole/cli/internal/pkg/apiclient"
 	"github.com/loophole/cli/internal/pkg/communication"
-	"github.com/mitchellh/go-homedir"
 	"github.com/ncruces/zenity"
 	"github.com/pkg/browser"
 	"github.com/spf13/viper"
@@ -83,25 +82,6 @@ func getDownloadLink(availableVersion string) string {
 }
 
 func remindAgainCheck(availableVersionParsed semver.Version) (bool, bool, error) {
-	home, err := homedir.Dir()
-	if err != nil {
-		return true, false, err
-	}
-
-	viper.SetDefault("lastreminder", time.Time{})         //date of last reminder, default zero value for time
-	viper.SetDefault("availableversion", "1.0.0-beta.14") //last seen latest version
-	viper.SetDefault("remindercount", 3)                  //counts to zero, then switches from prompt to notification reminder
-	viper.SetConfigName("config")                         //name of config file (without extension)
-	viper.SetConfigType("json")
-	viper.AddConfigPath(fmt.Sprintf("%s/.loophole/", home))
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok { //create a config if none exist yet
-			viper.WriteConfigAs(fmt.Sprintf("%s/.loophole/config.json", home))
-		} else {
-			return true, false, err
-		}
-	}
-
 	lastSeenLatestVersion, err := semver.Make(viper.GetString("availableversion"))
 	if availableVersionParsed.GT(lastSeenLatestVersion) { //reset reminder count if new version is out
 		viper.Set("availableversion", availableVersionParsed.String())
@@ -113,7 +93,7 @@ func remindAgainCheck(availableVersionParsed semver.Version) (bool, bool, error)
 	lastReminder := viper.GetTime("lastreminder")
 	if (lastReminder.Year() < time.Now().Year()) || (lastReminder.YearDay() < time.Now().YearDay()) { //check if reminder has been done today
 		viper.Set("lastreminder", time.Now())
-		err = viper.WriteConfigAs(fmt.Sprintf("%s/.loophole/config.json", home))
+		err = config.SaveViperConfig()
 		if err != nil {
 			return true, false, err
 		}
@@ -121,7 +101,7 @@ func remindAgainCheck(availableVersionParsed semver.Version) (bool, bool, error)
 			return true, false, nil
 		} else {
 			viper.Set("remindercount", viper.GetInt("remindercount")-1)
-			err = viper.WriteConfigAs(fmt.Sprintf("%s/.loophole/config.json", home))
+			err = config.SaveViperConfig()
 			if err != nil {
 				return true, false, err
 			}

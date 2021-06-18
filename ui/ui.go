@@ -16,6 +16,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/loophole/cli/config"
 	"github.com/loophole/cli/internal/app/loophole"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/cache"
@@ -235,6 +236,10 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 
 // Display shows the main app window
 func Display() {
+	err := config.SetupViperConfig()
+	if err != nil {
+		communication.Error(fmt.Sprintf("Error while setting up viper: %s", err.Error()))
+	}
 	chromeLocation := lorca.LocateChrome()
 	if chromeLocation == "" {
 		message := "Chrome/Chromium >= 70 is required."
