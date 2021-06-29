@@ -14,6 +14,7 @@ import (
 	"github.com/loophole/cli/internal/pkg/httpserver"
 	"github.com/loophole/cli/internal/pkg/keys"
 	"github.com/loophole/cli/internal/pkg/urlmaker"
+	"github.com/spf13/viper"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -70,6 +71,15 @@ func handleClient(tunnelID string, client net.Conn, local net.Conn) {
 	<-chDone
 }
 
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}
+
 func registerDomain(publicKey *ssh.PublicKey, requestedSiteID string, tunnelID string) (*apiclient.RegistrationSuccessResponse, error) {
 	communication.LoadingStart(tunnelID, "Registering your domain...")
 	registrationResult, err := apiclient.RegisterSite(*publicKey, requestedSiteID)
@@ -84,6 +94,16 @@ func registerDomain(publicKey *ssh.PublicKey, requestedSiteID string, tunnelID s
 			communication.TunnelError(tunnelID, "Something unexpected happened, please let developers know")
 		}
 		return nil, err
+	}
+	if viper.GetBool("savehostnames") {
+		hostnames := viper.GetStringSlice("usedhostnames")
+		if !contains(hostnames, requestedSiteID) && requestedSiteID != "" {
+			viper.Set("usedhostnames", append(hostnames, requestedSiteID))
+			err := viper.WriteConfig()
+			if err != nil {
+				communication.Error(fmt.Sprintf("Error occured while saving config: %s\n", err.Error()))
+			}
+		}
 	}
 	communication.LoadingSuccess(tunnelID)
 	return registrationResult, nil

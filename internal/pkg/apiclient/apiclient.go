@@ -5,8 +5,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
+	"regexp"
 	"runtime"
 	"time"
 
@@ -49,6 +51,46 @@ var isTokenSaved = token.IsTokenSaved
 var getAccessToken = token.GetAccessToken
 var tokenWasRefreshed = false
 var apiURL = config.Config.APIEndpoint.URI()
+
+// GetLockedHostnames is a function used to obtain the locked hostnames for the user
+func GetLockedHostnames() ([]string, error) {
+	accessToken, err := getAccessToken()
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/site/locked", apiURL), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", userAgent())
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	var netTransport = &http.Transport{
+		Dial: (&net.Dialer{
+			Timeout: 10 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
+	var netClient = &http.Client{
+		Timeout:   time.Second * 30,
+		Transport: netTransport,
+	}
+
+	resp, err := netClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	respBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	respString := string(respBytes)
+	reg := regexp.MustCompile(`\[*",*"*\]*`)
+	hostnames := reg.Split(respString, -1)
+	if len(hostnames) > 2 {
+		hostnames = hostnames[1 : len(hostnames)-1]
+	}
+	return hostnames, nil
+}
 
 // RegisterSite is a funtion used to obtain site id and register keys in the gateway
 func RegisterSite(publicKey ssh.PublicKey, requestedSiteID string) (*RegistrationSuccessResponse, error) {

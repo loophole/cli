@@ -10,6 +10,7 @@ import (
 
 	"github.com/loophole/cli/config"
 	"github.com/loophole/cli/internal/pkg/cache"
+	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/mattn/go-colorable"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -56,6 +57,10 @@ func initLogger() {
 // Execute runs command parsing chain
 func Execute() {
 	rootCmd.Version = fmt.Sprintf("%s (%s)", config.Config.Version, config.Config.CommitHash)
+	err := config.SetupViperConfig()
+	if err != nil {
+		communication.Error(fmt.Sprintf("Error while setting up viper: %s", err.Error()))
+	}
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

@@ -9,6 +9,7 @@ import (
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/loophole/cli/internal/pkg/token"
+	"github.com/loophole/cli/internal/pkg/updatecheck"
 
 	"github.com/spf13/cobra"
 )
@@ -28,7 +29,7 @@ To expose local directory via webdav (e.g. /data/my-data) simply use 'loophole w
 		idToken := token.GetIdToken()
 		communication.ApplicationStart(loggedIn, idToken)
 
-		checkVersion()
+		updatecheck.CheckForUpdates()
 
 		webdavEndpointSpecs.Path = args[0]
 		quitChannel := make(chan bool)
