@@ -77,7 +77,6 @@ func getDownloadLink(availableVersion string) string {
 		return fmt.Sprintf("https://github.com/loophole/cli/releases/tag/%s", availableVersion)
 	}
 	link := fmt.Sprintf("https://github.com/loophole/cli/releases/download/%s/loophole-desktop_%s_%s_%s%s", availableVersion, availableVersion, operatingSystem, architecture, archiveType)
-	fmt.Println(link)
 	return link
 }
 
