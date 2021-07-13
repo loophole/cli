@@ -5,6 +5,7 @@ package cmd
 import (
 	"errors"
 
+	"github.com/loophole/cli/config"
 	"github.com/loophole/cli/internal/app/loophole"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/communication"
@@ -55,6 +56,7 @@ To expose local directory (e.g. /data/my-data) simply use 'loophole path /data/m
 }
 
 func init() {
+	dirCmd.PersistentFlags().BoolVar(&config.Config.Display.DisableDirectoryListing, "disable-directory-listing", false, "Disable showing all files when navigating to directories without index.html")
 	initServeCommand(dirCmd)
 	rootCmd.AddCommand(dirCmd)
 }

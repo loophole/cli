@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"path/filepath"
 
 	auth "github.com/abbot/go-http-auth"
+	"github.com/loophole/cli/config"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/urlmaker"
 	"golang.org/x/crypto/bcrypt"
@@ -18,6 +20,34 @@ import (
 const (
 	logoURL = "https://raw.githubusercontent.com/loophole/website/master/static/img/logo.png"
 )
+
+type customFileSystem struct {
+	fs http.FileSystem
+}
+
+func (cfs customFileSystem) Open(path string) (http.File, error) {
+	f, err := cfs.fs.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	s, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if s.IsDir() {
+		index := filepath.Join(path, "index.html")
+		if _, err := cfs.fs.Open(index); err != nil {
+			closeErr := f.Close()
+			if closeErr != nil {
+				return nil, err
+			}
+			return nil, err
+		}
+	}
+
+	return f, nil
+}
 
 type ServerBuilder interface {
 	WithSiteID(string) ServerBuilder
@@ -189,7 +219,12 @@ func (ssb *staticServerBuilder) WithBasicAuth(username string, password string) 
 }
 
 func (ssb *staticServerBuilder) Build() (*http.Server, error) {
-	fs := http.FileServer(http.Dir(ssb.directory))
+	var fs http.Handler
+	if config.Config.Display.DisableDirectoryListing {
+		fs = http.FileServer(customFileSystem{http.Dir(ssb.directory)})
+	} else {
+		fs = http.FileServer(http.Dir(ssb.directory))
+	}
 
 	var server *http.Server
 

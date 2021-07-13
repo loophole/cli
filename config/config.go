@@ -15,8 +15,9 @@ type OAuthConfig struct {
 
 // DisplayConfig defines the display switches shape
 type DisplayConfig struct {
-	Verbose bool `json:"verbose"`
-	QR      bool `json:"qr"`
+	DisableDirectoryListing bool `json:"disabledirectorylisting"`
+	Verbose                 bool `json:"verbose"`
+	QR                      bool `json:"qr"`
 }
 
 // ApplicationConfig defines the application config shape
