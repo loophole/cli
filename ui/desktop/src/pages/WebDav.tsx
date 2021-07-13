@@ -53,6 +53,7 @@ const WebDav = () => {
         disableProxyErrorPage: false,
         tunnelId: uuidv4(),
       },
+      deactivatedirectorylisting: false,
     };
     if (usingCustomHostname) {
       options.remote.siteId = customHostname;

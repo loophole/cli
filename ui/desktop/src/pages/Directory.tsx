@@ -19,6 +19,7 @@ import {
   isLocalPathValid,
   isLoopholeHostnameValid,
 } from "../features/validator/validators";
+import DirectorySettings from "../components/form/DirectorySettings";
 
 const DirectoryPage = () => {
   const dispatch = useDispatch();
@@ -30,6 +31,7 @@ const DirectoryPage = () => {
   const [usingBasicAuth, setUsingBasicAuth] = useState(false);
   const [basicAuthUsername, setBasicAuthUsername] = useState("");
   const [basicAuthPassword, setBasicAuthPassword] = useState("");
+  const [disableDirectoryListing, setDisableDirectoryListing] = useState(false);
 
   const areInputsValid = (): boolean => {
     if (!isLocalPathValid(path)) return false;
@@ -53,6 +55,7 @@ const DirectoryPage = () => {
         disableProxyErrorPage: false,
         tunnelId: uuidv4(),
       },
+      deactivatedirectorylisting: disableDirectoryListing
     };
     if (usingCustomHostname) {
       options.remote.siteId = customHostname;
@@ -103,6 +106,13 @@ const DirectoryPage = () => {
                 usernameChangeCallback={setBasicAuthUsername}
                 passwordValue={basicAuthPassword}
                 passwordChangeCallback={setBasicAuthPassword}
+              />
+            </div>
+            <div className="column is-12">
+              <h5 className="title is-5">Directory Listing</h5>
+              <DirectorySettings
+                usingValue={disableDirectoryListing}
+                usingChangeCallback={setDisableDirectoryListing}
               />
             </div>
             <div className="column is-12">

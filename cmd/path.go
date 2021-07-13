@@ -33,8 +33,9 @@ To expose local directory (e.g. /data/my-data) simply use 'loophole path /data/m
 		quitChannel := make(chan bool)
 
 		exposeConfig := lm.ExposeDirectoryConfig{
-			Local:  dirEndpointSpecs,
-			Remote: remoteEndpointSpecs,
+			Local:                   dirEndpointSpecs,
+			Remote:                  remoteEndpointSpecs,
+			DisableDirectoryListing: config.Config.Display.DisableDirectoryListing,
 		}
 
 		authMethod, err := loophole.RegisterTunnel(&exposeConfig.Remote)
