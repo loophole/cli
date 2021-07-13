@@ -55,6 +55,7 @@ const WebDav = () => {
         disableOldCiphers: false,
         tunnelId: uuidv4(),
       },
+      deactivatedirectorylisting: false,
     };
     if (usingCustomHostname) {
       options.remote.siteId = customHostname;
