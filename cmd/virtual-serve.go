@@ -10,10 +10,8 @@ import (
 	"strings"
 
 	"github.com/beevik/guid"
-	"github.com/blang/semver/v4"
 	"github.com/loophole/cli/config"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
-	"github.com/loophole/cli/internal/pkg/apiclient"
 	"github.com/loophole/cli/internal/pkg/cache"
 	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/loophole/cli/internal/pkg/inpututil"
@@ -89,25 +87,4 @@ func parseBasicAuthFlags(flagset *pflag.FlagSet) error {
 	}
 
 	return nil
-}
-
-func checkVersion() {
-	availableVersion, err := apiclient.GetLatestAvailableVersion()
-	if err != nil {
-		communication.Debug("There was a problem obtaining info response, skipping further checking")
-		return
-	}
-	currentVersionParsed, err := semver.Make(config.Config.Version)
-	if err != nil {
-		communication.Debug(fmt.Sprintf("Cannot parse current version '%s' as semver version, skipping further checking", config.Config.Version))
-		return
-	}
-	availableVersionParsed, err := semver.Make(availableVersion.Version)
-	if err != nil {
-		communication.Debug(fmt.Sprintf("Cannot parse available version '%s' as semver version, skipping further checking", availableVersion))
-		return
-	}
-	if currentVersionParsed.LT(availableVersionParsed) {
-		communication.NewVersionAvailable(availableVersion.Version)
-	}
 }

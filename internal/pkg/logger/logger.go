@@ -1,4 +1,4 @@
-package communication
+package logger
 
 import (
 	"fmt"
@@ -8,7 +8,6 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/logrusorgru/aurora"
-	"github.com/loophole/cli/config"
 	coreModels "github.com/loophole/cli/internal/app/loophole/models"
 	authModels "github.com/loophole/cli/internal/pkg/token/models"
 	"github.com/loophole/cli/internal/pkg/urlmaker"
@@ -17,6 +16,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+var DefaultLogger = NewStdOutLoggerMechanism()
+var CommunicationMechanism coreModels.CommunicationMechanism = DefaultLogger
+
 type stdoutLogger struct {
 	colorableOutput io.Writer
 	loader          *spinner.Spinner
@@ -24,7 +26,7 @@ type stdoutLogger struct {
 }
 
 // NewStdOutLogger is stdout mechanism constructor
-func NewStdOutLogger() Mechanism {
+func NewStdOutLoggerMechanism() coreModels.CommunicationMechanism {
 	logger := stdoutLogger{
 		colorableOutput: colorable.NewColorableStdout(),
 	}
@@ -95,13 +97,13 @@ func (l *stdoutLogger) ApplicationStart(loggedIn bool, idToken string) {
 	fmt.Fprintln(l.colorableOutput)
 	fmt.Fprintln(l.colorableOutput)
 }
-func (l *stdoutLogger) ApplicationStop() {
+func (l *stdoutLogger) ApplicationStop(feedbackFormURL ...string) {
 	l.messageMutex.Lock()
 	defer l.messageMutex.Unlock()
 	l.divider()
 	fmt.Fprint(l.colorableOutput, "Goodbye")
 
-	fmt.Fprintln(l.colorableOutput, aurora.Cyan(fmt.Sprintf("Thank you for using Loophole. Please give us your feedback via %s and help us improve our services.", config.Config.FeedbackFormURL)))
+	fmt.Fprintln(l.colorableOutput, aurora.Cyan(fmt.Sprintf("Thank you for using Loophole. Please give us your feedback via %s and help us improve our services.", feedbackFormURL[0])))
 }
 
 func (l *stdoutLogger) TunnelStart(tunnelID string) {
@@ -110,7 +112,7 @@ func (l *stdoutLogger) TunnelStart(tunnelID string) {
 	log.Debug().Msg("Tunnel starting up...")
 }
 
-func (l *stdoutLogger) TunnelStartSuccess(remoteConfig coreModels.RemoteEndpointSpecs, localEndpoint string) {
+func (l *stdoutLogger) TunnelStartSuccess(remoteConfig coreModels.RemoteEndpointSpecs, localEndpoint string, qr ...bool) {
 	l.messageMutex.Lock()
 	defer l.messageMutex.Unlock()
 
@@ -122,7 +124,7 @@ func (l *stdoutLogger) TunnelStartSuccess(remoteConfig coreModels.RemoteEndpoint
 	fmt.Fprint(l.colorableOutput, " -> ")
 	fmt.Fprint(l.colorableOutput, aurora.Green(localEndpoint))
 
-	if config.Config.Display.QR {
+	if qr[0] {
 		fmt.Fprintln(l.colorableOutput, "")
 		fmt.Fprintln(l.colorableOutput, "")
 
@@ -207,7 +209,7 @@ func (l *stdoutLogger) LoadingFailure(tunnelID string, err error) {
 func (l *stdoutLogger) NewVersionAvailable(availableVersion string) {
 	l.messageMutex.Lock()
 	defer l.messageMutex.Unlock()
-	fmt.Fprint(l.colorableOutput, aurora.Cyan(fmt.Sprintf("There is new version available, to get it please visit %s",
+	fmt.Fprintln(l.colorableOutput, aurora.Cyan(fmt.Sprintf("There is new version available, to get it please visit %s",
 		fmt.Sprintf("https://github.com/loophole/cli/releases/tag/%s", availableVersion))))
 }
 

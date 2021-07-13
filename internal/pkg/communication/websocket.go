@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/loophole/cli/config"
 	coreModels "github.com/loophole/cli/internal/app/loophole/models"
+	"github.com/loophole/cli/internal/pkg/logger"
 	authModels "github.com/loophole/cli/internal/pkg/token/models"
 	"github.com/loophole/cli/internal/pkg/urlmaker"
 	"github.com/mitchellh/go-homedir"
@@ -47,7 +48,7 @@ const (
 )
 
 // NewWebsocketLogger is websocket mechanism constructor
-func NewWebsocketLogger(wsClient *websocket.Conn) Mechanism {
+func NewWebsocketLogger(wsClient *websocket.Conn) coreModels.CommunicationMechanism {
 	logger := websocketLogger{
 		wsClient: wsClient,
 	}
@@ -164,7 +165,7 @@ func (l *websocketLogger) write(websocketMessage interface{}) {
 
 	err := l.wsClient.WriteJSON(websocketMessage)
 	if err != nil {
-		defaultLogger.Fatal("Communication over websocket is failing")
+		logger.DefaultLogger.Fatal("Communication over websocket is failing")
 	}
 }
 
@@ -243,7 +244,7 @@ func (l *websocketLogger) Fatal(message string) {
 	})
 
 	zenity.Error(message)
-	defaultLogger.Fatal(message)
+	logger.DefaultLogger.Fatal(message)
 }
 
 func (l *websocketLogger) ApplicationStart(loggedIn bool, idToken string) {
@@ -264,7 +265,7 @@ func (l *websocketLogger) ApplicationStart(loggedIn bool, idToken string) {
 
 	l.write(websocketMessage)
 }
-func (l *websocketLogger) ApplicationStop() {
+func (l *websocketLogger) ApplicationStop(s ...string) { //s is only defined to fulfill the interface
 	l.write(appStopMessage{
 		Type: MessageTypeAppStop,
 	})
@@ -277,7 +278,7 @@ func (l *websocketLogger) TunnelStart(tunnelID string) {
 	})
 }
 
-func (l *websocketLogger) TunnelStartSuccess(remoteConfig coreModels.RemoteEndpointSpecs, localEndpoint string) {
+func (l *websocketLogger) TunnelStartSuccess(remoteConfig coreModels.RemoteEndpointSpecs, localEndpoint string, b ...bool) { //b is only defined to fulfill the interface
 	siteAddrs := []string{}
 	siteAddrs = append(siteAddrs, urlmaker.GetSiteURL("https", remoteConfig.SiteID, remoteConfig.Domain))
 
