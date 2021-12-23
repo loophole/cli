@@ -32,4 +32,5 @@ type ApplicationConfig struct {
 
 	APIEndpoint     models.Endpoint `json:"apiConfig"`
 	GatewayEndpoint models.Endpoint `json:"gatewayConfig"`
+	GatewayBindPort int32           `json:"gatewayBindPort"`
 }
