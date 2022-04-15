@@ -3,6 +3,7 @@ package httpserver
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -113,6 +114,11 @@ func (psb *proxyServerBuilder) Build() (*http.Server, error) {
 
 	proxy.Director = func(req *http.Request) {
 		defaultDirector(req)
+
+		addr := net.ParseIP(target.Host)
+		if addr == nil {
+			req.Host = target.Host
+		}
 
 		req.Header.Set("X-Forwarded-Host", urlmaker.GetSiteFQDN(psb.serverBuilder.siteID, psb.serverBuilder.domain))
 		req.Header.Set("X-Forwarded-Proto", "https")
