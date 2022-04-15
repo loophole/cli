@@ -1,5 +1,5 @@
 import React from "react";
-import QRCode from "qrcode.react";
+import QRCodeCanvas from "qrcode.react";
 
 import OpenCopyBlock from "../../components/routing/OpenCopyBlock";
 import Tunnel from "./interfaces/Tunnel";
@@ -30,10 +30,8 @@ const TunnelInfo = (props: TunnelInfoProps) => {
       <div className="has-text-centered">
         {tunnel.started && tunnel.siteAddrs && tunnel.siteAddrs[0] ? (
           <div className="qrcode-container">
-            <QRCode
+            <QRCodeCanvas
               value={tunnel.siteAddrs[0]}
-              renderAs="canvas"
-              width="80%"
               size={256}
               level="H"
             />
