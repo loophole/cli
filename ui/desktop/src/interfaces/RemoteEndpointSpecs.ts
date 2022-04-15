@@ -9,4 +9,5 @@ export default interface RemoteEndpointSpecs {
   basicAuthUsername?: string;
   basicAuthPassword?: string;
   disableProxyErrorPage: boolean;
+  disableOldCiphers: boolean;
 }

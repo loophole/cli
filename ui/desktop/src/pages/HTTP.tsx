@@ -33,6 +33,7 @@ const HTTP = () => {
   const [basicAuthUsername, setBasicAuthUsername] = useState("");
   const [basicAuthPassword, setBasicAuthPassword] = useState("");
   const [disableProxyErrorPage, setDisableProxyErrorPage] = useState(false);
+  const [disableOldCiphers, setDisableOldCiphers] = useState(false);
   const [usingUrlPath, setUsingUrlPath] = useState(false);
   const [urlPath, setUrlPath] = useState("")
 
@@ -61,6 +62,7 @@ const HTTP = () => {
       },
       remote: {
         disableProxyErrorPage: false,
+        disableOldCiphers: false,
         tunnelId: uuidv4(),
       },
     };
@@ -76,6 +78,7 @@ const HTTP = () => {
     }
 
     options.remote.disableProxyErrorPage = disableProxyErrorPage;
+    options.remote.disableOldCiphers = disableOldCiphers;
 
     const message: Message<ExposeHttpPortMessage> = {
       type: MessageTypeRequestTunnelStartHTTP,
@@ -137,6 +140,19 @@ const HTTP = () => {
                       }}
                     />{" "}
                     I want to disable proxy error page and use regular 502 error
+                  </label>
+                </div>
+              </div>
+              <div className="field">
+                <div className="control">
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      onChange={(e) => {
+                        setDisableOldCiphers(!disableOldCiphers);
+                      }}
+                    />{" "}
+                    I want to disable old TLS ciphers (older than TLS 1.2)
                   </label>
                 </div>
               </div>
