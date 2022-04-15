@@ -22,14 +22,16 @@ const (
 type ServerBuilder interface {
 	WithSiteID(string) ServerBuilder
 	WithDomain(string) ServerBuilder
+	DisableOldCiphers(bool) ServerBuilder
 	Proxy() ProxyServerBuilder
 	ServeStatic() StaticServerBuilder
 	ServeWebdav() WebdavServerBuilder
 }
 
 type serverBuilder struct {
-	siteID string
-	domain string
+	siteID            string
+	domain            string
+	disableOldCiphers bool
 }
 
 func (sb *serverBuilder) WithSiteID(siteID string) ServerBuilder {
@@ -39,6 +41,10 @@ func (sb *serverBuilder) WithSiteID(siteID string) ServerBuilder {
 
 func (sb *serverBuilder) WithDomain(domain string) ServerBuilder {
 	sb.domain = domain
+	return sb
+}
+func (sb *serverBuilder) DisableOldCiphers(setting bool) ServerBuilder {
+	sb.disableOldCiphers = setting
 	return sb
 }
 
@@ -144,12 +150,12 @@ func (psb *proxyServerBuilder) Build() (*http.Server, error) {
 
 		server = &http.Server{
 			Handler:   proxyWithAuth,
-			TLSConfig: getTLSConfig(psb.serverBuilder.siteID, psb.serverBuilder.domain),
+			TLSConfig: getTLSConfig(psb.serverBuilder.siteID, psb.serverBuilder.domain, psb.serverBuilder.disableOldCiphers),
 		}
 	} else {
 		server = &http.Server{
 			Handler:   proxy,
-			TLSConfig: getTLSConfig(psb.serverBuilder.siteID, psb.serverBuilder.domain),
+			TLSConfig: getTLSConfig(psb.serverBuilder.siteID, psb.serverBuilder.domain, psb.serverBuilder.disableOldCiphers),
 		}
 	}
 
@@ -195,12 +201,12 @@ func (ssb *staticServerBuilder) Build() (*http.Server, error) {
 
 		server = &http.Server{
 			Handler:   handler,
-			TLSConfig: getTLSConfig(ssb.serverBuilder.siteID, ssb.serverBuilder.domain),
+			TLSConfig: getTLSConfig(ssb.serverBuilder.siteID, ssb.serverBuilder.domain, ssb.serverBuilder.disableOldCiphers),
 		}
 	} else {
 		server = &http.Server{
 			Handler:   fs,
-			TLSConfig: getTLSConfig(ssb.serverBuilder.siteID, ssb.serverBuilder.domain),
+			TLSConfig: getTLSConfig(ssb.serverBuilder.siteID, ssb.serverBuilder.domain, ssb.serverBuilder.disableOldCiphers),
 		}
 	}
 
@@ -250,12 +256,12 @@ func (wsb *webdavServerBuilder) Build() (*http.Server, error) {
 
 		server = &http.Server{
 			Handler:   handler,
-			TLSConfig: getTLSConfig(wsb.serverBuilder.siteID, wsb.serverBuilder.domain),
+			TLSConfig: getTLSConfig(wsb.serverBuilder.siteID, wsb.serverBuilder.domain, wsb.serverBuilder.disableOldCiphers),
 		}
 	} else {
 		server = &http.Server{
 			Handler:   wdHandler,
-			TLSConfig: getTLSConfig(wsb.serverBuilder.siteID, wsb.serverBuilder.domain),
+			TLSConfig: getTLSConfig(wsb.serverBuilder.siteID, wsb.serverBuilder.domain, wsb.serverBuilder.disableOldCiphers),
 		}
 	}
 

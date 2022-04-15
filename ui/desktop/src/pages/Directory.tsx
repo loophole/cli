@@ -30,6 +30,7 @@ const DirectoryPage = () => {
   const [usingBasicAuth, setUsingBasicAuth] = useState(false);
   const [basicAuthUsername, setBasicAuthUsername] = useState("");
   const [basicAuthPassword, setBasicAuthPassword] = useState("");
+  const [disableOldCiphers, setDisableOldCiphers] = useState(false);
 
   const areInputsValid = (): boolean => {
     if (!isLocalPathValid(path)) return false;
@@ -51,6 +52,7 @@ const DirectoryPage = () => {
       },
       remote: {
         disableProxyErrorPage: false,
+        disableOldCiphers: false,
         tunnelId: uuidv4(),
       },
     };
@@ -61,6 +63,8 @@ const DirectoryPage = () => {
       options.remote.basicAuthUsername = basicAuthUsername;
       options.remote.basicAuthPassword = basicAuthPassword;
     }
+
+    options.remote.disableOldCiphers = disableOldCiphers;
 
     const message: Message<ExposeDirectoryMessage> = {
       type: MessageTypeRequestTunnelStartDirectory,
@@ -104,6 +108,19 @@ const DirectoryPage = () => {
                 passwordValue={basicAuthPassword}
                 passwordChangeCallback={setBasicAuthPassword}
               />
+              <div className="field">
+                <div className="control">
+                  <label className="checkbox">
+                    <input
+                      type="checkbox"
+                      onChange={(e) => {
+                        setDisableOldCiphers(!disableOldCiphers);
+                      }}
+                    />{" "}
+                    I want to disable old TLS ciphers (older than TLS 1.2)
+                  </label>
+                </div>
+              </div>
             </div>
             <div className="column is-12">
               <div className="field is-grouped is-pulled-right">
