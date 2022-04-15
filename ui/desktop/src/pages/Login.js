@@ -1,7 +1,7 @@
 import { useSelector, useDispatch } from "react-redux";
 import { useHistory, useLocation } from "react-router-dom";
 
-import QRCode from "qrcode.react";
+import QRCodeSVG from "qrcode.react";
 import { send } from "@giantmachines/redux-websocket";
 
 import { useAuth } from "../features/config/authProvider";
@@ -52,10 +52,8 @@ const LoginPage = () => {
           <div className="column is-12">
             <p className="title is-3">QR Code</p>
             <p className="content has-text-centered">
-              <QRCode
-                renderAs="svg"
+              <QRCodeSVG
                 size={256}
-                width="80%"
                 level="H"
                 value={appState.authInstructions.verificationUriComplete}
               />
