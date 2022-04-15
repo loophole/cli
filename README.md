@@ -4,6 +4,8 @@ https://loophole.cloud
 
 Loophole CLI is one of the available loophole clients.
 
+<a href="https://www.producthunt.com/posts/loophole?utm_source=badge-featured&utm_medium=badge&utm_souce=badge-loophole" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=280773&theme=light" alt="Loophole - Instant hosting, right from your local machine | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
+
 ## Installation
 
 Head over to [the releases page](https://github.com/loophole/cli/releases/latest) and get binary which is suitable for you.
