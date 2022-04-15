@@ -12,4 +12,5 @@ type RemoteEndpointSpecs struct {
 	BasicAuthUsername     string   `json:"basicAuthUsername"`
 	BasicAuthPassword     string   `json:"basicAuthPassword"`
 	DisableProxyErrorPage bool     `json:"disableProxyErrorPage"`
+	DisableOldCiphers     bool     `json:"disableOldCiphers"`
 }

@@ -1,3 +1,4 @@
+//go:build !desktop
 // +build !desktop
 
 package cmd
@@ -38,6 +39,8 @@ func initServeCommand(serveCmd *cobra.Command) {
 
 	serveCmd.PersistentFlags().StringVarP(&remoteEndpointSpecs.BasicAuthUsername, basicAuthUsernameFlagName, "u", "", "Basic authentication username to protect site with")
 	serveCmd.PersistentFlags().StringVarP(&remoteEndpointSpecs.BasicAuthPassword, basicAuthPasswordFlagName, "p", "", "Basic authentication password to protect site with")
+
+	serveCmd.PersistentFlags().BoolVar(&remoteEndpointSpecs.DisableOldCiphers, "disable-old-ciphers", false, "Disable TLS ciphers older than TLS1.2")
 
 	remoteEndpointSpecs.TunnelID = guid.NewString()
 }

@@ -1,3 +1,4 @@
+//go:build dev
 // +build dev
 
 package httpserver
@@ -18,8 +19,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-func getTLSConfig(siteID string, domain string) *tls.Config {
-	return &tls.Config{GetCertificate: getCertificate(fmt.Sprintf("%s.%s", siteID, domain))}
+func getTLSConfig(siteID string, domain string, disableOldCiphers bool) *tls.Config {
+	config := &tls.Config{
+		GetCertificate: getCertificate(fmt.Sprintf("%s.%s", siteID, domain)),
+	}
+	if disableOldCiphers {
+		config.MinVersion = tls.VersionTLS12
+	}
+	return config
 }
 
 func getCertificate(arg interface{}) func(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error) {

@@ -128,6 +128,7 @@ func createTLSReverseProxy(localEndpoint lm.Endpoint, remoteConfig lm.RemoteEndp
 	serverBuilder := httpserver.New().
 		WithSiteID(remoteConfig.SiteID).
 		WithDomain(remoteConfig.Domain).
+		DisableOldCiphers(remoteConfig.DisableOldCiphers).
 		Proxy().
 		ToEndpoint(localEndpoint)
 
@@ -209,6 +210,7 @@ func getStaticFileServer(exposeDirectoryConfig lm.ExposeDirectoryConfig) (*http.
 	serverBuilder := httpserver.New().
 		WithSiteID(exposeDirectoryConfig.Remote.SiteID).
 		WithDomain(exposeDirectoryConfig.Remote.Domain).
+		DisableOldCiphers(exposeDirectoryConfig.Remote.DisableOldCiphers).
 		ServeStatic().
 		FromDirectory(exposeDirectoryConfig.Local.Path)
 
@@ -232,6 +234,7 @@ func getWebdavServer(exposeWebDavConfig lm.ExposeWebdavConfig) (*http.Server, er
 	serverBuilder := httpserver.New().
 		WithSiteID(exposeWebDavConfig.Remote.SiteID).
 		WithDomain(exposeWebDavConfig.Remote.Domain).
+		DisableOldCiphers(exposeWebDavConfig.Remote.DisableOldCiphers).
 		ServeWebdav().
 		FromDirectory(exposeWebDavConfig.Local.Path)
 
