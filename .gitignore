@@ -7,8 +7,6 @@
 /certs
 # Vendor packages
 /vendor
-# pkger files
-pkged.go
 # Node.js files
 node_modules
 .eslintcache

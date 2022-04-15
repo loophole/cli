@@ -1,14 +1,16 @@
+//go:build desktop
 // +build desktop
 
 package ui
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 
-	"github.com/markbates/pkger"
 	"github.com/ncruces/zenity"
 	"github.com/rs/zerolog/log"
 	"github.com/skratchdot/open-golang/open"
@@ -232,6 +234,9 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//go:embed desktop/build/*
+var box embed.FS
+
 // Display shows the main app window
 func Display() {
 	chromeLocation := lorca.LocateChrome()
@@ -241,10 +246,12 @@ func Display() {
 		communication.Fatal(message)
 	}
 
-	// path is absolute with / set to module (repository) root
-	box := pkger.Dir("/ui/desktop/build")
+	subFS, err := fs.Sub(box, "desktop/build")
+	if err != nil {
+		panic(err)
+	}
 
-	http.Handle("/", http.FileServer(box))
+	http.Handle("/", http.FileServer(http.FS(subFS)))
 	http.HandleFunc("/ws", websocketHandler)
 
 	localListener, err := net.Listen("tcp", "127.0.0.1:0")

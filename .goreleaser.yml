@@ -6,7 +6,6 @@ env:
 before:
   hooks:
     - go mod download
-    - pkger
     
 builds:
 - id: loophole-cli
@@ -14,7 +13,6 @@ builds:
   goos:
     - linux
     - darwin
-    - windows
   goarch:
     - 386
     - amd64
@@ -26,8 +24,19 @@ builds:
   mod_timestamp: "{{ .CommitTimestamp }}"
   ldflags:
     - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}}
-  flags:
-  - -tags=skippkger
+- id: loophole-cli-win
+  binary: loophole
+  goos:
+    - windows
+  goarch:
+    - 386
+    - amd64
+  goarm:
+    - 6
+    - 7
+  mod_timestamp: "{{ .CommitTimestamp }}"
+  ldflags:
+    - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}}
 
 - id: loophole-desktop
   binary: loophole-desktop
@@ -60,6 +69,7 @@ archives:
   - id: cli
     builds:
       - loophole-cli
+      - loophole-cli-win
     replacements:
       amd64: 64bit
       386: 32bit
