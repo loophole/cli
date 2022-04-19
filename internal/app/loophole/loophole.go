@@ -32,7 +32,7 @@ const (
 // remote forwarding port (on remote SSH server network)
 var remoteEndpoint = lm.Endpoint{
 	Host: "127.0.0.1",
-	Port: 80,
+	Port: config.Config.GatewayBindPort,
 }
 
 func handleClient(tunnelID string, client net.Conn, local net.Conn) {

@@ -24,12 +24,13 @@ var Config = ApplicationConfig{
 	},
 	APIEndpoint: models.Endpoint{
 		Protocol: "http",
-		Host:     "api.loophole.local",
-		Port:     3000,
+		Host:     "127.0.0.1",
+		Port:     4000,
 	},
 	GatewayEndpoint: models.Endpoint{
 		Protocol: "ssh",
-		Host:     "gateway.loophole.local",
+		Host:     "127.0.0.1",
 		Port:     8022,
 	},
+	GatewayBindPort: 8888,
 }

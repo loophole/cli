@@ -29,7 +29,8 @@ var Config = ApplicationConfig{
 	},
 	GatewayEndpoint: models.Endpoint{
 		Protocol: "ssh",
-		Host:     "gateway.loophole.host",
-		Port:     8022,
+		Host:     "gateway2.loophole.host",
+		Port:     8023,
 	},
+	GatewayBindPort: 80,
 }

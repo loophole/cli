@@ -2,6 +2,7 @@ package apiclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -10,11 +11,18 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/hasura/go-graphql-client"
 	"github.com/loophole/cli/config"
 	"github.com/loophole/cli/internal/pkg/communication"
 	"github.com/loophole/cli/internal/pkg/token"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/oauth2"
 )
+
+type TunnelCreateInput struct {
+	Hostname graphql.String `graphql:"hostname" json:"hostname"`
+	Key      graphql.String `graphql:"key" json:"key"`
+}
 
 // RegistrationSuccessResponse defines the json format in which the registration success response is returned
 type RegistrationSuccessResponse struct {
@@ -71,118 +79,134 @@ func RegisterSite(publicKey ssh.PublicKey, requestedSiteID string) (*Registratio
 		}
 	}
 
-	data := map[string]string{
-		"key": publicKeyString,
-	}
+	var data TunnelCreateInput
+
 	if requestedSiteID != "" {
-		data["id"] = requestedSiteID
+		data = TunnelCreateInput{
+			Hostname: graphql.String(requestedSiteID),
+			Key:      graphql.String(publicKeyString),
+		}
+	} else {
+		data = TunnelCreateInput{
+			Key: graphql.String(publicKeyString),
+		}
 	}
 
-	jsonData, err := json.Marshal(data)
+	variables := map[string]interface{}{
+		"data": data,
+	}
+
+	oauthToken := oauth2.ReuseTokenSource(
+		nil,
+		oauth2.StaticTokenSource(&oauth2.Token{AccessToken: accessToken}),
+	)
+
+	httpClient := oauth2.NewClient(context.Background(), oauthToken)
+
+	client := graphql.NewClient(fmt.Sprintf("%s/graphql", apiURL), httpClient)
+	var createTunnelMutation struct {
+		CreateTunnel struct {
+			ID       graphql.ID
+			Hostname graphql.String
+			Domain   graphql.String
+		} `graphql:"createTunnel(data: $data)"`
+	}
+
+	err = client.Mutate(context.Background(), &createTunnelMutation, variables)
 	if err != nil {
-		return nil, err
-	}
+		token.RefreshToken()
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/site", apiURL), bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", userAgent())
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
-
-	var netTransport = &http.Transport{
-		Dial: (&net.Dialer{
-			Timeout: 10 * time.Second,
-		}).Dial,
-		TLSHandshakeTimeout: 10 * time.Second,
-	}
-	var netClient = &http.Client{
-		Timeout:   time.Second * 30,
-		Transport: netTransport,
-	}
-
-	resp, err := netClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		errorResponse := ErrorResponse{}
-		err := json.NewDecoder(resp.Body).Decode(&errorResponse)
+		err = client.Mutate(context.Background(), &createTunnelMutation, variables)
 		if err != nil {
 			return nil, err
 		}
-
-		switch resp.StatusCode {
-		case http.StatusBadRequest:
-			return nil, RequestError{
-				Message: errorResponse.Message,
-				Details: `The given hostname didn't match the requirements:
-- Starts with a letter
-- Contains only small letters, numbers and single dashes (-) between them
-- Ends with a small letter or number`,
-				StatusCode: resp.StatusCode,
-			}
-		case http.StatusUnauthorized:
-			if !tokenWasRefreshed {
-				err := token.RefreshToken()
-				if err != nil {
-					return nil, RequestError{
-						Message:    "Authentication failed, then refreshing token failed",
-						Details:    errorResponse.Message,
-						StatusCode: resp.StatusCode,
-					}
-				}
-				tokenWasRefreshed = true
-				return RegisterSite(publicKey, requestedSiteID)
-			}
-			return nil, RequestError{
-				Message:    "Authentication failed, try logging out and logging in again",
-				Details:    errorResponse.Message,
-				StatusCode: resp.StatusCode,
-			}
-
-		case http.StatusForbidden:
-			return nil, RequestError{
-				Message:    "You don't have required permissions to establish tunnel with given parameters",
-				Details:    errorResponse.Message,
-				StatusCode: resp.StatusCode,
-			}
-		case http.StatusConflict:
-			return nil, RequestError{
-				Message:    "The given hostname is already taken by different user",
-				Details:    errorResponse.Message,
-				StatusCode: resp.StatusCode,
-			}
-		case http.StatusUnprocessableEntity:
-			return nil, RequestError{
-				Message: errorResponse.Message,
-				Details: `The given hostname didn't match the requirements:
-- Starts with a letter
-- Contains only small letters, numbers and single dashes (-) between them
-- Ends with a small letter or number
-- Minimum 6 characters (not applicable for premium users`,
-				StatusCode: resp.StatusCode,
-			}
-		default:
-			return nil, RequestError{
-				Message:    errorResponse.Message,
-				Details:    "Something unexpected happened, please let developers know",
-				StatusCode: resp.StatusCode,
-			}
-		}
 	}
+	fmt.Printf("Created a tunnel: %s: %s.\n", createTunnelMutation.CreateTunnel.ID, createTunnelMutation.CreateTunnel.Hostname)
 
-	result := RegistrationSuccessResponse{}
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	if err != nil {
-		return nil, err
+	result := RegistrationSuccessResponse{
+		SiteID: string(createTunnelMutation.CreateTunnel.Hostname),
+		Domain: string(createTunnelMutation.CreateTunnel.Domain),
 	}
+	// 	resp, err := netClient.Do(req)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	defer resp.Body.Close()
 
-	communication.Debug(fmt.Sprintf("Site registration response: %v", result))
+	// 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+	// 		errorResponse := ErrorResponse{}
+	// 		err := json.NewDecoder(resp.Body).Decode(&errorResponse)
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+
+	// 		switch resp.StatusCode {
+	// 		case http.StatusBadRequest:
+	// 			return nil, RequestError{
+	// 				Message: errorResponse.Message,
+	// 				Details: `The given hostname didn't match the requirements:
+	// - Starts with a letter
+	// - Contains only small letters, numbers and single dashes (-) between them
+	// - Ends with a small letter or number`,
+	// 				StatusCode: resp.StatusCode,
+	// 			}
+	// 		case http.StatusUnauthorized:
+	// 			if !tokenWasRefreshed {
+	// 				err := token.RefreshToken()
+	// 				if err != nil {
+	// 					return nil, RequestError{
+	// 						Message:    "Authentication failed, then refreshing token failed",
+	// 						Details:    errorResponse.Message,
+	// 						StatusCode: resp.StatusCode,
+	// 					}
+	// 				}
+	// 				tokenWasRefreshed = true
+	// 				return RegisterSite(publicKey, requestedSiteID)
+	// 			}
+	// 			return nil, RequestError{
+	// 				Message:    "Authentication failed, try logging out and logging in again",
+	// 				Details:    errorResponse.Message,
+	// 				StatusCode: resp.StatusCode,
+	// 			}
+
+	// 		case http.StatusForbidden:
+	// 			return nil, RequestError{
+	// 				Message:    "You don't have required permissions to establish tunnel with given parameters",
+	// 				Details:    errorResponse.Message,
+	// 				StatusCode: resp.StatusCode,
+	// 			}
+	// 		case http.StatusConflict:
+	// 			return nil, RequestError{
+	// 				Message:    "The given hostname is already taken by different user",
+	// 				Details:    errorResponse.Message,
+	// 				StatusCode: resp.StatusCode,
+	// 			}
+	// 		case http.StatusUnprocessableEntity:
+	// 			return nil, RequestError{
+	// 				Message: errorResponse.Message,
+	// 				Details: `The given hostname didn't match the requirements:
+	// - Starts with a letter
+	// - Contains only small letters, numbers and single dashes (-) between them
+	// - Ends with a small letter or number
+	// - Minimum 6 characters (not applicable for premium users`,
+	// 				StatusCode: resp.StatusCode,
+	// 			}
+	// 		default:
+	// 			return nil, RequestError{
+	// 				Message:    errorResponse.Message,
+	// 				Details:    "Something unexpected happened, please let developers know",
+	// 				StatusCode: resp.StatusCode,
+	// 			}
+	// 		}
+	// 	}
+
+	// 	result := RegistrationSuccessResponse{}
+	// 	err = json.NewDecoder(resp.Body).Decode(&result)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+
+	// 	communication.Debug(fmt.Sprintf("Site registration response: %v", result))
 
 	return &result, nil
 }
