@@ -51,11 +51,11 @@ $ go test -v ./...
 ### Running
 
 ```
-# go run main.go
+# go run cli.go
 ```
 
 ### Building
 
 ```
-# go build -o loophole main.go
+# go build -o loophole cli.go
 ```
