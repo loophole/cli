@@ -39,6 +39,22 @@ Congrats, you can now share the presented link to the world.
 
 For more information head over to [docs](https://loophole.cloud/docs/).
 
+## Having issues with WebSocket?
+Because Loophole will always start connections to clients with HTTPS, it is not possible to establish plain
+ **ws://** connections, only **wss://** (WebSocket Secure) will work. In fact, establishing a **ws://** 
+ connection from HTTPS would even be considered a security issue, which means that e.g. browsers block this
+  by default. This is not something we at Loophole can change.
+
+If you use **wss://** and have checked that it works locally but are still experiencing issues, try the following:
+### Desktop version:
+- Make sure the box named "The server is already using HTTPS." is ticked.
+### CLI version:
+- Make sure you use the --https flag.
+
+If your problem still persists, feel free to open a new 
+[Issue](https://github.com/loophole/cli/issues/new?assignees=&labels=bug&template=bug_report.md&title=) and tell us 
+about it!
+
 
 ## Development
 
