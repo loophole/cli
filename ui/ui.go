@@ -260,7 +260,7 @@ func Display() {
 	}
 	go http.Serve(localListener, nil)
 
-	ui, err := lorca.New(fmt.Sprintf("http://%s", localListener.Addr().String()), "", 980, 800)
+	ui, err := lorca.New(fmt.Sprintf("http://%s", localListener.Addr().String()), "", 980, 800, "--remote-allow-origins=http://127.0.0.1")
 	if err != nil {
 		communication.Fatal(fmt.Sprintf("Unable to run Chrome/Chromium: %s", err.Error()))
 	}
