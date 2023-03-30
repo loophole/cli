@@ -1,3 +1,4 @@
+//go:build !desktop
 // +build !desktop
 
 package cmd
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/loophole/cli/config"
+	"github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/cache"
 	"github.com/mattn/go-colorable"
 	"github.com/rs/zerolog"
@@ -33,6 +35,10 @@ func init() {
 }
 
 func initLogger() {
+	stdlogWriter := models.LevelWriter{
+		Level:         zerolog.InfoLevel,
+		MessagePrefix: "[sys]",
+	}
 	logLocation := cache.GetLocalStorageFile(fmt.Sprintf("%s.log", time.Now().Format("2006-01-02--15-04-05")), "logs")
 
 	f, err := os.Create(logLocation)
@@ -50,7 +56,7 @@ func initLogger() {
 	}
 
 	stdlog.SetFlags(0)
-	stdlog.SetOutput(log.Logger)
+	stdlog.SetOutput(stdlogWriter)
 }
 
 // Execute runs command parsing chain
