@@ -1,6 +1,6 @@
 module github.com/loophole/cli
 
-go 1.18
+go 1.20
 
 require (
 	github.com/abbot/go-http-auth v0.4.0
