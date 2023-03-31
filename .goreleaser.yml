@@ -70,28 +70,34 @@ archives:
     builds:
       - loophole-cli
       - loophole-cli-win
-    replacements:
-      amd64: 64bit
-      386: 32bit
-      darwin: macos
     format_overrides:
       - goos: windows
         format: zip
     wrap_in_directory: true
-    name_template: "{{ .ProjectName }}-cli_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
+    name_template: >-
+      {{ .ProjectName }}-cli_{{ .Version }}_
+      {{- if eq .Os "darwin" }}macos{{ else }}{{ title .Os }}{{ end }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+      {{- if .Mips }}_{{ .Mips }}{{ end }}
   - id: desktop
     builds:
       - loophole-desktop
       - loophole-desktop-win
-    replacements:
-      amd64: 64bit
-      386: 32bit
-      darwin: macos
+    name_template: >-
+      {{ .ProjectName }}-desktop_{{ .Version }}_
+      {{- if eq .Os "darwin" }}macos{{ else }}{{ title .Os }}{{ end }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+      {{- if .Mips }}_{{ .Mips }}{{ end }}
     format_overrides:
       - goos: windows
         format: zip
     wrap_in_directory: true
-    name_template: "{{ .ProjectName }}-desktop_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
 checksum:
   name_template: "checksums.txt"
 
