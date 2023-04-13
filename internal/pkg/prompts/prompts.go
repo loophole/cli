@@ -105,7 +105,7 @@ func askBasicAuth(signalChan chan os.Signal) string {
 	if res == AnswerYes {
 		err = survey.Ask(usernamePrompt, &res)
 		if err != nil {
-			os.Exit(0)
+			os.Exit(1)
 			return err.Error()
 		}
 	} else {
@@ -141,7 +141,7 @@ func askHostname(signalChan chan os.Signal) string {
 	if res == AnswerYes {
 		err = survey.Ask(hostnamePrompt, &res)
 		if err != nil {
-			os.Exit(0)
+			os.Exit(1)
 			return err.Error()
 		}
 	} else {
