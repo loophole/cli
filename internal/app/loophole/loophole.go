@@ -358,7 +358,7 @@ func forward(remoteEndpointSpecs lm.RemoteEndpointSpecs,
 		_, err := netClient.Get(urlmaker.GetSiteURL("https", remoteEndpointSpecs.SiteID, remoteEndpointSpecs.Domain))
 
 		if err != nil {
-			communication.TunnelError(remoteEndpointSpecs.TunnelID, "TLS Certificate failed to provision. Will be obtained with first request made by any client, therefore first execution may be slower")
+			communication.TunnelDebug(remoteEndpointSpecs.TunnelID, "TLS Certificate failed to provision. Will be obtained with first request made by any client, therefore first execution may be slower")
 		} else {
 			communication.TunnelInfo(remoteEndpointSpecs.TunnelID, "TLS Certificate successfully provisioned")
 		}
