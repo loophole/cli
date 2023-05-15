@@ -19,6 +19,7 @@ import {
   isLocalPathValid,
   isLoopholeHostnameValid,
 } from "../features/validator/validators";
+import DirectorySettings from "../components/form/DirectorySettings";
 
 const DirectoryPage = () => {
   const dispatch = useDispatch();
@@ -31,6 +32,7 @@ const DirectoryPage = () => {
   const [basicAuthUsername, setBasicAuthUsername] = useState("");
   const [basicAuthPassword, setBasicAuthPassword] = useState("");
   const [disableOldCiphers, setDisableOldCiphers] = useState(false);
+  const [disableDirectoryListing, setDisableDirectoryListing] = useState(false);
 
   const areInputsValid = (): boolean => {
     if (!isLocalPathValid(path)) return false;
@@ -55,6 +57,7 @@ const DirectoryPage = () => {
         disableOldCiphers: false,
         tunnelId: uuidv4(),
       },
+      deactivatedirectorylisting: disableDirectoryListing
     };
     if (usingCustomHostname) {
       options.remote.siteId = customHostname;
@@ -121,6 +124,13 @@ const DirectoryPage = () => {
                   </label>
                 </div>
               </div>
+            </div>
+            <div className="column is-12">
+              <h5 className="title is-5">Directory Listing</h5>
+              <DirectorySettings
+                usingValue={disableDirectoryListing}
+                usingChangeCallback={setDisableDirectoryListing}
+              />
             </div>
             <div className="column is-12">
               <div className="field is-grouped is-pulled-right">

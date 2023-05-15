@@ -18,6 +18,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/loophole/cli/config"
 	"github.com/loophole/cli/internal/app/loophole"
 	lm "github.com/loophole/cli/internal/app/loophole/models"
 	"github.com/loophole/cli/internal/pkg/cache"
@@ -98,6 +99,7 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 				communication.Warn(err.Error())
 			}
 
+			config.Config.Display.DisableDirectoryListing = exposeDirectoryConfig.DisableDirectoryListing
 			tunnelQuitChannel := make(chan bool)
 			go func() {
 				sshDir := cache.GetLocalStorageDir(".ssh") //getting our sshDir and creating it, if it doesn't exist
