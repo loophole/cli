@@ -10,6 +10,7 @@ import (
 
 	"github.com/loophole/cli/config"
 	"github.com/loophole/cli/internal/pkg/cache"
+	"github.com/loophole/cli/internal/pkg/prompts"
 	"github.com/mattn/go-colorable"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -17,12 +18,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var signalChan chan os.Signal
+
+var alreadyRunning bool
+
 var rootCmd = &cobra.Command{
 	Use:   "loophole",
 	Short: "Loophole - End to end TLS encrypted TCP communication between you and your clients",
 	Long:  "Loophole - End to end TLS encrypted TCP communication between you and your clients",
 	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
+		if !alreadyRunning {
+			alreadyRunning = true
+			prompts.StartInteractivePrompt(httpCmd.Root(), signalChan)
+		}
 	},
 }
 
@@ -54,10 +62,13 @@ func initLogger() {
 }
 
 // Execute runs command parsing chain
-func Execute() {
+func Execute(c chan os.Signal) {
 	rootCmd.Version = fmt.Sprintf("%s (%s)", config.Config.Version, config.Config.CommitHash)
 
-	if err := rootCmd.Execute(); err != nil {
-		os.Exit(1)
+	signalChan = c
+	if !alreadyRunning {
+		if err := rootCmd.Execute(); err != nil {
+			signalChan <- nil
+		}
 	}
 }

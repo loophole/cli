@@ -33,8 +33,7 @@ func initServeCommand(serveCmd *cobra.Command) {
 
 	serveCmd.PersistentFlags().StringVarP(&remoteEndpointSpecs.IdentityFile, "identity-file", "i", fmt.Sprintf("%s/id_rsa", sshDir), "private key path")
 	serveCmd.MarkFlagFilename("identity-file")
-
-	serveCmd.PersistentFlags().StringVar(&remoteEndpointSpecs.SiteID, "hostname", "", "custom hostname you want to run service on")
+	serveCmd.PersistentFlags().StringVarP(&remoteEndpointSpecs.SiteID, "hostname", "c", "", "custom hostname you want to run service on")
 	serveCmd.PersistentFlags().BoolVar(&config.Config.Display.QR, "qr", false, "use if you want a QR version of your url to be shown")
 
 	serveCmd.PersistentFlags().StringVarP(&remoteEndpointSpecs.BasicAuthUsername, basicAuthUsernameFlagName, "u", "", "Basic authentication username to protect site with")
