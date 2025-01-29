@@ -8,7 +8,7 @@ Loophole CLI is one of the available loophole clients.
 
 ## Installation
 
-Head over to [the releases page](https://github.com/loophole/cli/releases/latest) and get binary which is suitable for you.
+Head over to the [releases page](https://github.com/loophole/cli/releases/latest) and get a binary which is suitable for you.
 
 ## Quick start
 
@@ -37,7 +37,7 @@ $ ./loophole webdav ./my-directory
 
 Congrats, you can now share the presented link to the world.
 
-For more information head over to [docs](https://loophole.cloud/docs/).
+For more information head over to the [documentation](https://loophole.cloud/docs/).
 
 
 ## Development
