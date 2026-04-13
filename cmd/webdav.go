@@ -1,4 +1,4 @@
-// +build !desktop
+//go:build !desktop
 
 package cmd
 
