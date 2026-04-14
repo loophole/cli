@@ -91,12 +91,18 @@ func registerDomain(publicKey *ssh.PublicKey, requestedSiteID string, tunnelID s
 
 func connectViaSSH(siteID string, tunnelID string, authMethod ssh.AuthMethod) (*ssh.Client, error) {
 	var serverSSHConnHTTPS *ssh.Client
+
+	// Log connection attempt details
+	gatewayHost := config.Config.GatewayEndpoint.Hostname()
+	communication.TunnelDebug(tunnelID, fmt.Sprintf("Attempting SSH connection to %s as user %s", gatewayHost, siteID))
+
 	sshConfigHTTPS := &ssh.ClientConfig{
 		User: siteID,
 		Auth: []ssh.AuthMethod{
 			authMethod,
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         60 * time.Second,
 	}
 	var sshSuccess bool = false
 	var sshRetries int = 5
@@ -106,6 +112,7 @@ func connectViaSSH(siteID string, tunnelID string, authMethod ssh.AuthMethod) (*
 		serverSSHConnHTTPS, err = ssh.Dial("tcp", config.Config.GatewayEndpoint.Hostname(), sshConfigHTTPS)
 		if err != nil {
 			communication.LoadingFailure(tunnelID, err)
+			communication.TunnelError(tunnelID, fmt.Sprintf("SSH dial error: %v", err))
 			communication.TunnelInfo(tunnelID, fmt.Sprintf("SSH Connection failed, retrying in 10 seconds... (Attempt %d/%d)", i+1, sshRetries))
 			time.Sleep(10 * time.Second)
 		} else {
